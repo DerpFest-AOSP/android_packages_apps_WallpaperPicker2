@@ -80,7 +80,7 @@
     <string name="suggestion_chip_close_button_description" msgid="7063924604587228866">"Benachrichtigung zum Designpaket schließen"</string>
     <string name="refreshing_daily_wallpaper_dialog_message" msgid="1975910873362855761">"Täglicher Hintergrund wird aktualisiert…"</string>
     <string name="refresh_daily_wallpaper_failed_message" msgid="4749879993812557166">"Aktualisierung des täglichen Hintergrunds fehlgeschlagen. Prüfe die Netzwerkverbindung und versuche es noch einmal."</string>
-    <string name="on_device_wallpapers_category_title" msgid="805819102071369004">"Hintergründe auf dem Gerät"</string>
+    <string name="on_device_wallpapers_category_title" msgid="805819102071369004">"DerpFest-Hintergründe"</string>
     <string name="on_device_wallpapers_category_title_desktop" msgid="316919420410065369">"Auf dem Gerät"</string>
     <string name="on_device_wallpaper_title" msgid="5262564748034629524">"Android-Hintergrund"</string>
     <string name="live_wallpapers_category_title" msgid="1814374812192366349">"Live-Hintergründe"</string>
