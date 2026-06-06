@@ -95,6 +95,7 @@ import com.android.wallpaper.picker.customization.ui.viewmodel.CustomizationOpti
 import com.android.wallpaper.picker.customization.ui.viewmodel.CustomizationPickerViewModel2
 import com.android.wallpaper.picker.customization.ui.viewmodel.CustomizationPickerViewModel2.Companion.KEY_DESTINATION
 import com.android.wallpaper.picker.data.WallpaperModel
+import com.android.wallpaper.picker.data.category.CategoryModel
 import com.android.wallpaper.picker.di.modules.MainDispatcher
 import com.android.wallpaper.picker.preview.ui.WallpaperPreviewActivity
 import com.android.wallpaper.picker.preview.ui.view.ClickableMotionLayout
@@ -833,7 +834,7 @@ class CustomizationPickerFragment :
             navigateToWallpaperCollectionScreen = { categoryModel, categoryType ->
                 if (BaseFlags.get(requireContext()).isWallpapersFragmentEnabled()) {
                     categoryWallpapersRepository.setSelectedCategory(category = categoryModel)
-                    switchFragment(CategoryWallpapersFragment())
+                    switchFragment(CategoryWallpapersFragment.newInstance())
                 } else {
                     switchFragment(
                         individualPickerFactory.getIndividualPickerInstance(

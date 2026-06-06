@@ -26,7 +26,6 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.wallpaper.R
-import com.android.wallpaper.asset.ContentUriAsset
 import com.android.wallpaper.config.BaseFlags
 import com.android.wallpaper.module.PackageStatusNotifier
 import com.android.wallpaper.module.PackageStatusNotifier.PackageStatus
@@ -40,7 +39,6 @@ import com.android.wallpaper.picker.category.domain.interactor.MyPhotosInteracto
 import com.android.wallpaper.picker.category.domain.interactor.ThirdPartyCategoryInteractor
 import com.android.wallpaper.picker.category.ui.view.SectionCardinality
 import com.android.wallpaper.picker.customization.shared.model.CategoryType
-import com.android.wallpaper.picker.customization.ui.util.PhotoMediaUtils
 import com.android.wallpaper.picker.data.WallpaperModel
 import com.android.wallpaper.picker.data.category.CategoryModel
 import com.android.wallpaper.picker.di.modules.BackgroundDispatcher
@@ -56,6 +54,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEmpty
 import kotlinx.coroutines.launch
 
 /** Top level [ViewModel] for the categories screen */
@@ -361,59 +360,35 @@ constructor(
             }
 
     private val myPhotosSectionViewModel: Flow<SectionViewModel> =
-        curatedPhotosInteractor.category
-            .distinctUntilChanged(PhotoMediaUtils.distinctMediaKeyChanged())
+        myPhotosInteractor.category
+            .distinctUntilChanged()
             .map { category ->
-                val tileViewModels =
-                    category
-                        ?.categoryModel
-                        ?.collectionCategoryData
-                        ?.wallpaperModels
-                        ?.withIndex()
-                        ?.map { wallpaperModel ->
-                            val staticWallpaperModel =
-                                wallpaperModel.value as? WallpaperModel.StaticWallpaperModel
-                            val total =
-                                category.categoryModel.collectionCategoryData.wallpaperModels.size
-
+                SectionViewModel(
+                    tileViewModels =
+                        listOf(
                             TileViewModel(
-                                defaultDrawable = null,
-                                thumbnailAsset =
-                                    ContentUriAsset(
-                                        context,
-                                        staticWallpaperModel?.imageWallpaperData?.uri,
-                                    ),
-                                text = category.categoryModel.commonCategoryData.title,
+                                defaultDrawable = category.imageCategoryData?.defaultDrawable,
+                                thumbnailAsset = category.imageCategoryData?.thumbnailAsset,
+                                text = category.commonCategoryData.title,
                                 maxCategoriesInRow = SectionCardinality.Single,
-                                contentDescription =
-                                    context.getString(
-                                        R.string.carousel_content_description_photos,
-                                        wallpaperModel.index + 1,
-                                        total,
-                                    ),
                             ) {
-                                navigateToPreviewScreen(
-                                    wallpaperModel.value,
-                                    CategoryType.MyPhotosCategories,
-                                    StyleEnums
-                                        .SET_WALLPAPER_ENTRY_POINT_WALLPAPER_PREVIEW_SUGGESTED_PHOTOS_CATEGORY_SCREEN,
-                                )
+                                // Prioritize the stable local-photo flow until curated photos
+                                // is actually implemented in this tree.
+                                navigateToPhotosPicker(null)
                             }
-                        } ?: emptyList()
-
-                val isSuggestedPhotoCarouselVisible = tileViewModels.size >= 3
-                PhotosViewModel(
-                    tileViewModels = tileViewModels,
+                        ),
                     columnCount = context.resources.getInteger(R.integer.category_span_count),
-                    sectionTitle = context.getString(R.string.choose_a_curated_photo_section_title),
-                    displayType = DisplayType.Carousel,
-                    status = category?.status,
-                    isDismissed = curatedPhotosInteractor.dismissBanner.value,
-                    pendingIntent = category?.pendingIntent,
-                    isSuggestedPhotoCarouselVisible = isSuggestedPhotoCarouselVisible,
-                ) {
-                    navigateToPhotosPicker(null)
-                }
+                    sectionTitle = context.getString(R.string.choose_a_wallpaper_section_title),
+                )
+            }
+            .onEmpty {
+                emit(
+                    SectionViewModel(
+                        tileViewModels = emptyList(),
+                        columnCount = 0,
+                        sectionTitle = "No Photos Available",
+                    )
+                )
             }
 
     // The ordering of addition of viewModels here decides the final ordering how sections would

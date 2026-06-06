@@ -132,6 +132,7 @@ constructor(
         val result =
             withContext(backgroundDispatcher) {
                 category.commonCategoryData.fetchWallpapers?.invoke(collectionId)
+                    ?: category.collectionCategoryData?.wallpaperModels
             }
         val wallpapers = result ?: emptyList()
 
