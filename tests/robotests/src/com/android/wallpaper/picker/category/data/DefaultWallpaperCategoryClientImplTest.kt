@@ -24,6 +24,7 @@ import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import com.android.wallpaper.model.PartnerWallpaperInfo
 import com.android.wallpaper.model.ThirdPartyLiveWallpaperCategory
+import com.android.wallpaper.module.ExtendedEffectsHelper
 import com.android.wallpaper.module.InjectorProvider
 import com.android.wallpaper.picker.category.client.DefaultWallpaperCategoryClient
 import com.android.wallpaper.picker.category.client.DefaultWallpaperCategoryClientImpl
@@ -64,6 +65,7 @@ class DefaultWallpaperCategoryClientImplTest {
     @Inject lateinit var testDispatcher: TestDispatcher
     @Inject lateinit var testScope: TestScope
     @Inject lateinit var liveWallpapersClient: LiveWallpapersClient
+    @Inject lateinit var extendedEffectsHelper: ExtendedEffectsHelper
 
     private lateinit var defaultWallpaperCategoryClient: DefaultWallpaperCategoryClient
     @Inject lateinit var testInjector: TestInjector
@@ -77,7 +79,8 @@ class DefaultWallpaperCategoryClientImplTest {
                 context,
                 partnerProvider,
                 wallpaperXMLParser,
-                liveWallpapersClient
+                liveWallpapersClient,
+                extendedEffectsHelper,
             )
         InjectorProvider.setInjector(testInjector)
         val resources = context.resources

@@ -28,8 +28,7 @@
   <uses-permission android:name="android.permission.SET_WALLPAPER_DIM_AMOUNT" />
   <uses-permission android:name="android.permission.UPDATE_THEME_SETTINGS" />
   <uses-permission android:name="com.google.android.apps.aiwallpapers.CONFIGURE_WALLPAPERS" />
-  <!-- Required to query Pixel creative wallpaper content providers (AI Wallpapers, etc.). -->
-  <uses-permission android:name="com.google.android.apps.aiwallpapers.CONFIGURE_WALLPAPERS" />
+  <uses-permission android:name="com.google.android.apps.magicportrait.ACCESS_CONTENT" />
 
   <queries>
       <!-- Specific intents Wallpaper picker query for -->

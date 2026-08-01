@@ -20,10 +20,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Log
+import com.android.wallpaper.config.BaseFlags
 import com.android.wallpaper.model.CreativeCategory
+import com.android.wallpaper.module.DefaultExtendedEffectsHelper
+import com.android.wallpaper.module.ExtendedEffectsHelper
 import com.android.wallpaper.picker.category.domain.interactor.CreativeCategoryInteractor
 import com.android.wallpaper.picker.data.WallpaperModel
 import com.android.wallpaper.picker.data.category.CategoryModel
+import com.android.wallpaper.picker.data.category.CommonCategoryData
 import com.android.wallpaper.util.converter.category.CategoryFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
@@ -36,6 +40,9 @@ import org.xmlpull.v1.XmlPullParserException
 /**
  * Discovers Pixel creative wallpaper categories (AI, Emoji, etc.) from installed
  * WALLPAPER_CREATION services and loads their templates from package content providers.
+ *
+ * Magic Portrait is exposed separately via [standaloneCategories] and must go through the
+ * photo-picker / extended-effects flow rather than live-wallpaper preview.
  */
 @Singleton
 class CreativeCategoryInteractorImpl
@@ -43,6 +50,7 @@ class CreativeCategoryInteractorImpl
 constructor(
     @ApplicationContext private val context: Context,
     private val categoryFactory: CategoryFactory,
+    private val extendedEffectsHelper: ExtendedEffectsHelper,
 ) : CreativeCategoryInteractor {
 
     private fun discoverCreativeCategories(): List<CategoryModel> {
@@ -52,8 +60,19 @@ constructor(
 
         val categories = mutableListOf<CategoryModel>()
         val seenCollectionIds = mutableSetOf<String>()
+        val magicPortraitPackage =
+            extendedEffectsHelper.effectsPackage.ifEmpty {
+                DefaultExtendedEffectsHelper.MAGIC_PORTRAIT_PACKAGE
+            }
 
         for (resolveInfo in services) {
+            val packageName = resolveInfo.serviceInfo.packageName
+            // Magic Portrait has WALLPAPER_CREATION but no content-provider templates; previewing
+            // it as a creative/live wallpaper crashes with a null effectType description.
+            if (packageName == magicPortraitPackage) {
+                continue
+            }
+
             val wallpaperInfo =
                 try {
                     android.app.WallpaperInfo(context, resolveInfo)
@@ -102,8 +121,6 @@ constructor(
     private fun hasUsableCreativeContent(model: CategoryModel): Boolean {
         val collection = model.collectionCategoryData ?: return false
         if (collection.wallpaperModels.isEmpty()) {
-            // Empty categories are treated as create-new (single-wallpaper) and still need a
-            // template row that includes description content. Without any models, skip.
             return false
         }
         return collection.wallpaperModels.any { wallpaper ->
@@ -112,9 +129,44 @@ constructor(
         }
     }
 
+    private fun discoverStandaloneCategories(): List<CategoryModel> {
+        if (!BaseFlags.get(context).isMagicPortraitEntryPointsEnabled()) {
+            return emptyList()
+        }
+        val packageName =
+            extendedEffectsHelper.effectsPackage.ifEmpty {
+                DefaultExtendedEffectsHelper.MAGIC_PORTRAIT_PACKAGE
+            }
+        val effectsIntent = extendedEffectsHelper.getExtendedEffectIntent()
+        if (effectsIntent.resolveActivityInfo(context.packageManager, 0) == null) {
+            return emptyList()
+        }
+
+        return try {
+            val appInfo = context.packageManager.getApplicationInfo(packageName, 0)
+            val title = context.packageManager.getApplicationLabel(appInfo).toString()
+            val icon = context.packageManager.getApplicationIcon(appInfo)
+            listOf(
+                CategoryModel(
+                    commonCategoryData =
+                        CommonCategoryData(
+                            title = title,
+                            collectionId = MAGIC_PORTRAIT_COLLECTION_ID,
+                            priority = PRIORITY_STANDALONE,
+                            thumbnailDrawable = icon,
+                        )
+                )
+            )
+        } catch (e: PackageManager.NameNotFoundException) {
+            Log.d(TAG, "Magic Portrait package not installed: $packageName")
+            emptyList()
+        }
+    }
+
     override val categories: Flow<List<CategoryModel>> = flowOf(discoverCreativeCategories())
 
-    override val standaloneCategories: Flow<List<CategoryModel>> = flowOf(emptyList())
+    override val standaloneCategories: Flow<List<CategoryModel>> =
+        flowOf(discoverStandaloneCategories())
 
     override fun updateCreativeCategories() {
         // Categories are discovered at initialization. Refresh broadcasts can be added later.
@@ -126,5 +178,7 @@ constructor(
         private const val TAG = "CreativeCategoryInteractorImpl"
         private const val WALLPAPER_CREATION_ACTION =
             "com.google.android.apps.wallpaper.action.WALLPAPER_CREATION"
+        private const val MAGIC_PORTRAIT_COLLECTION_ID = "magic_portrait"
+        private const val PRIORITY_STANDALONE = 50
     }
 }

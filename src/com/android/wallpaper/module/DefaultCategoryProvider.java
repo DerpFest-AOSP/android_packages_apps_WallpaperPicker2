@@ -15,7 +15,6 @@
  */
 package com.android.wallpaper.module;
 
-
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
@@ -215,13 +214,16 @@ public class DefaultCategoryProvider implements CategoryProvider {
                                                 .getPackageName()))
                         .collect(Collectors.toSet()));
             }
+            // Exclude Magic Portrait: previewing without a description crashes the service.
+            excluded.add(DefaultExtendedEffectsHelper.MAGIC_PORTRAIT_PACKAGE);
             return excluded;
         }
 
         protected List<String> getExcludedThirdPartyPackageNames() {
             return Arrays.asList(
                     "com.android.launcher", // Legacy launcher
-                    "com.android.wallpaper.livepicker"); // Live wallpaper picker
+                    "com.android.wallpaper.livepicker", // Live wallpaper picker
+                    DefaultExtendedEffectsHelper.MAGIC_PORTRAIT_PACKAGE);
         }
 
         /**

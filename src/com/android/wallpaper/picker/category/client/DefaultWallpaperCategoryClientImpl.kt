@@ -31,6 +31,8 @@ import com.android.wallpaper.model.ThirdPartyAppCategory
 import com.android.wallpaper.model.ThirdPartyLiveWallpaperCategory
 import com.android.wallpaper.model.WallpaperCategory
 import com.android.wallpaper.model.WallpaperInfo
+import com.android.wallpaper.module.DefaultExtendedEffectsHelper
+import com.android.wallpaper.module.ExtendedEffectsHelper
 import com.android.wallpaper.module.PartnerProvider
 import com.android.wallpaper.util.WallpaperParser
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -53,7 +55,8 @@ constructor(
     @ApplicationContext val context: Context,
     private val partnerProvider: PartnerProvider,
     private val wallpaperXMLParser: WallpaperParser,
-    private val liveWallpapersClient: LiveWallpapersClient
+    private val liveWallpapersClient: LiveWallpapersClient,
+    private val extendedEffectsHelper: ExtendedEffectsHelper,
 ) : DefaultWallpaperCategoryClient {
 
     private var systemCategories: List<Category>? = null
@@ -166,13 +169,22 @@ constructor(
                 }
             }
         }
+        // Magic Portrait / Photo Shuffle must not be previewed as plain live wallpapers — they
+        // require a valid WallpaperDescription from the extended-effects flow.
+        if (extendedEffectsHelper.effectsPackage.isNotEmpty()) {
+            excluded.add(extendedEffectsHelper.effectsPackage)
+        } else {
+            excluded.add(DefaultExtendedEffectsHelper.MAGIC_PORTRAIT_PACKAGE)
+        }
         return excluded
     }
 
     override fun getExcludedThirdPartyPackageNames(): List<String> {
         return listOf(
                 LAUNCHER_PACKAGE,  // Legacy launcher
-                LIVE_WALLPAPER_PICKER) // Live wallpaper picker
+                LIVE_WALLPAPER_PICKER, // Live wallpaper picker
+                DefaultExtendedEffectsHelper.MAGIC_PORTRAIT_PACKAGE,
+        )
     }
 
     /** This method is used for fetching the system categories. */
