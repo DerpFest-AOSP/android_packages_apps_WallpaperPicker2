@@ -23,6 +23,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.drawable.AnimatedImageDrawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -43,12 +44,9 @@ import com.android.wallpaper.module.InjectorProvider;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.Key;
-import com.bumptech.glide.load.MultiTransformation;
-import com.bumptech.glide.load.Transformation;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation;
-import com.bumptech.glide.load.resource.bitmap.FitCenter;
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.RequestOptions;
@@ -196,22 +194,16 @@ public class LiveWallpaperThumbAsset extends Asset {
     @Override
     public void loadDrawable(Context context, ImageView imageView,
                              int placeholderColor) {
-        RequestOptions reqOptions;
-        if (mUri != null) {
-            reqOptions = RequestOptions.centerCropTransform().apply(RequestOptions
-                    .diskCacheStrategyOf(DiskCacheStrategy.NONE)
-                    .skipMemoryCache(true))
-                    .placeholder(new ColorDrawable(placeholderColor));
-        } else {
-            reqOptions = RequestOptions.centerCropTransform()
-                    .placeholder(new ColorDrawable(placeholderColor));
-        }
+        // Use ImageView scale type instead of Glide bitmap transforms. centerCropTransform()
+        // fails for AnimatedImageDrawable thumbs ("Unable to convert ... to a Bitmap").
+        imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
         imageView.setBackgroundColor(placeholderColor);
         Glide.with(context)
                 .asDrawable()
                 .load(LiveWallpaperThumbAsset.this)
-                .apply(reqOptions)
+                .apply(createDrawableRequestOptions(placeholderColor))
                 .transition(DrawableTransitionOptions.withCrossFade())
+                .addListener(createAnimatedDrawableListener(/* drawableLoadedListener= */ null))
                 .into(imageView);
     }
 
@@ -220,54 +212,68 @@ public class LiveWallpaperThumbAsset extends Asset {
             final int transitionDurationMillis,
             @Nullable final DrawableLoadedListener drawableLoadedListener,
             int placeholderColor, @Nullable PermissionErrorListener permissionErrorListener) {
-        RequestOptions reqOptions;
-        if (mUri != null) {
-            reqOptions = RequestOptions.centerCropTransform().apply(RequestOptions
-                            .diskCacheStrategyOf(DiskCacheStrategy.NONE)
-                            .skipMemoryCache(true))
-                    .placeholder(new ColorDrawable(placeholderColor));
-        } else {
-            reqOptions = RequestOptions.centerCropTransform()
-                    .placeholder(new ColorDrawable(placeholderColor));
-        }
+        imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
         imageView.setBackgroundColor(placeholderColor);
         Glide.with(context)
                 .asDrawable()
                 .load(LiveWallpaperThumbAsset.this)
-                .apply(reqOptions)
+                .apply(createDrawableRequestOptions(placeholderColor))
                 .transition(DrawableTransitionOptions.withCrossFade(transitionDurationMillis))
-                .addListener(new RequestListener<Drawable>() {
-                    @Override
-                    public boolean onLoadFailed(@Nullable GlideException e, Object model,
-                            Target<Drawable> target, boolean isFirstResource) {
-                        return false;
-                    }
-
-                    @Override
-                    public boolean onResourceReady(Drawable resource, Object model,
-                            Target<Drawable> target, DataSource dataSource,
-                            boolean isFirstResource) {
-                        if (drawableLoadedListener != null) {
-                            drawableLoadedListener.onDrawableLoaded();
-                        }
-                        return false;
-                    }
-                })
+                .addListener(createAnimatedDrawableListener(drawableLoadedListener))
                 .into(imageView);
     }
 
     @Override
     public void loadLowResDrawable(Activity activity, ImageView imageView, int placeholderColor,
             BitmapTransformation transformation) {
-        Transformation<Bitmap> finalTransformation = (transformation == null)
-                ? new FitCenter()
-                : new MultiTransformation<>(new FitCenter(), transformation);
+        // Avoid bitmapTransform here for the same AnimatedImageDrawable reason; crop via the view.
+        imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
         Glide.with(activity)
                 .asDrawable()
                 .load(LiveWallpaperThumbAsset.this)
-                .apply(RequestOptions.bitmapTransform(finalTransformation)
-                        .placeholder(new ColorDrawable(placeholderColor)))
+                .apply(createDrawableRequestOptions(placeholderColor))
+                .addListener(createAnimatedDrawableListener(/* drawableLoadedListener= */ null))
                 .into(imageView);
+    }
+
+    /**
+     * Request options for drawable thumbnail loads. Must not apply bitmap transforms — those
+     * cannot convert {@link AnimatedImageDrawable} and cause live wallpaper thumbs to fail.
+     */
+    private RequestOptions createDrawableRequestOptions(int placeholderColor) {
+        RequestOptions options = RequestOptions.placeholderOf(new ColorDrawable(placeholderColor))
+                .dontTransform();
+        if (mUri != null) {
+            options = options.apply(RequestOptions.diskCacheStrategyOf(DiskCacheStrategy.NONE)
+                    .skipMemoryCache(true));
+        }
+        return options;
+    }
+
+    private RequestListener<Drawable> createAnimatedDrawableListener(
+            @Nullable DrawableLoadedListener drawableLoadedListener) {
+        return new RequestListener<Drawable>() {
+            @Override
+            public boolean onLoadFailed(@Nullable GlideException e, Object model,
+                    Target<Drawable> target, boolean isFirstResource) {
+                return false;
+            }
+
+            @Override
+            public boolean onResourceReady(Drawable resource, Object model,
+                    Target<Drawable> target, DataSource dataSource,
+                    boolean isFirstResource) {
+                if (resource instanceof AnimatedImageDrawable) {
+                    AnimatedImageDrawable animated = (AnimatedImageDrawable) resource;
+                    animated.setRepeatCount(AnimatedImageDrawable.REPEAT_INFINITE);
+                    animated.start();
+                }
+                if (drawableLoadedListener != null) {
+                    drawableLoadedListener.onDrawableLoaded();
+                }
+                return false;
+            }
+        };
     }
 
     @Override
