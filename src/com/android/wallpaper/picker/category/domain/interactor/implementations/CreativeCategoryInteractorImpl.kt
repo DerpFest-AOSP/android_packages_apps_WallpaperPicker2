@@ -19,92 +19,97 @@ package com.android.wallpaper.picker.category.domain.interactor.implementations
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.pm.ResolveInfo
+import android.util.Log
+import com.android.wallpaper.model.CreativeCategory
 import com.android.wallpaper.picker.category.domain.interactor.CreativeCategoryInteractor
+import com.android.wallpaper.picker.data.WallpaperModel
 import com.android.wallpaper.picker.data.category.CategoryModel
-import com.android.wallpaper.picker.data.category.CommonCategoryData
-import com.android.wallpaper.picker.data.category.ThirdPartyCategoryData
+import com.android.wallpaper.util.converter.category.CategoryFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import org.xmlpull.v1.XmlPullParserException
 
 /**
- * Pixel-specific implementation that discovers creative wallpaper categories
- * (AI Wallpapers, Emoji Wallpapers, Effects, etc.) from installed Pixel wallpaper packages.
+ * Discovers Pixel creative wallpaper categories (AI, Emoji, etc.) from installed
+ * WALLPAPER_CREATION services and loads their templates from package content providers.
  */
 @Singleton
-class CreativeCategoryInteractorImpl @Inject constructor(
+class CreativeCategoryInteractorImpl
+@Inject
+constructor(
     @ApplicationContext private val context: Context,
+    private val categoryFactory: CategoryFactory,
 ) : CreativeCategoryInteractor {
 
     private fun discoverCreativeCategories(): List<CategoryModel> {
         val pm = context.packageManager
-        val categories = mutableListOf<CategoryModel>()
-
-        // Discover live wallpaper services that have the WALLPAPER_CREATION action
-        // These are Pixel creative wallpaper services (AI, Emoji, etc.)
-        val creationIntent = Intent("com.google.android.apps.wallpaper.action.WALLPAPER_CREATION")
+        val creationIntent = Intent(WALLPAPER_CREATION_ACTION)
         val services = pm.queryIntentServices(creationIntent, PackageManager.GET_META_DATA)
 
-        for (service in services) {
-            val packageName = service.serviceInfo.packageName
-            val label = service.loadLabel(pm).toString()
-            val icon = service.loadIcon(pm)
+        val categories = mutableListOf<CategoryModel>()
+        val seenCollectionIds = mutableSetOf<String>()
 
-            // Create a resolve info that launches the service's package
-            val launchIntent = pm.getLaunchIntentForPackage(packageName)
-            if (launchIntent != null) {
-                val activities = pm.queryIntentActivities(launchIntent, 0)
-                if (activities.isNotEmpty()) {
-                    val resolveInfo = activities[0]
-                    categories.add(
-                        CategoryModel(
-                            commonCategoryData = CommonCategoryData(
-                                title = label,
-                                collectionId = "creative_$packageName",
-                                priority = PRIORITY_CREATIVE,
-                            ),
-                            thirdPartyCategoryData = ThirdPartyCategoryData(
-                                resolveInfo = resolveInfo,
-                                defaultDrawable = icon,
-                            ),
-                        )
-                    )
+        for (resolveInfo in services) {
+            val wallpaperInfo =
+                try {
+                    android.app.WallpaperInfo(context, resolveInfo)
+                } catch (e: XmlPullParserException) {
+                    Log.w(TAG, "Skipping wallpaper ${resolveInfo.serviceInfo}", e)
+                    continue
+                } catch (e: IOException) {
+                    Log.w(TAG, "Skipping wallpaper ${resolveInfo.serviceInfo}", e)
+                    continue
                 }
-            }
-        }
 
-        // Also check for known Pixel wallpaper packages that may not use WALLPAPER_CREATION
-        for ((pkg, fallbackLabel) in KNOWN_PIXEL_PACKAGES) {
-            if (categories.any { it.thirdPartyCategoryData?.resolveInfo?.activityInfo?.packageName == pkg }) {
-                continue // Already discovered
+            val metaData = wallpaperInfo.serviceInfo.metaData ?: continue
+            if (
+                metaData.get(CreativeCategory.KEY_WALLPAPER_CREATIVE_CATEGORY) == null ||
+                    metaData.get(CreativeCategory.KEY_WALLPAPER_CREATIVE_WALLPAPERS) == null
+            ) {
+                continue
             }
-            val launchIntent = pm.getLaunchIntentForPackage(pkg) ?: continue
-            val activities = pm.queryIntentActivities(launchIntent, 0)
-            if (activities.isNotEmpty()) {
-                val resolveInfo = activities[0]
-                val appInfo = try { pm.getApplicationInfo(pkg, 0) } catch (_: Exception) { null }
-                val icon = appInfo?.loadIcon(pm)
-                val label = appInfo?.loadLabel(pm)?.toString() ?: fallbackLabel
-                categories.add(
-                    CategoryModel(
-                        commonCategoryData = CommonCategoryData(
-                            title = label,
-                            collectionId = "creative_$pkg",
-                            priority = PRIORITY_CREATIVE,
-                        ),
-                        thirdPartyCategoryData = ThirdPartyCategoryData(
-                            resolveInfo = resolveInfo,
-                            defaultDrawable = icon,
-                        ),
+
+            val creativeCategories =
+                CreativeCategory.readCreativeCategories(context, wallpaperInfo) ?: continue
+
+            for (category in creativeCategories) {
+                if (!seenCollectionIds.add(category.collectionId)) {
+                    continue
+                }
+                val model = categoryFactory.getCategoryModel(category)
+                if (!hasUsableCreativeContent(model)) {
+                    Log.w(
+                        TAG,
+                        "Omitting creative category ${category.collectionId}: missing templates",
                     )
-                )
+                    continue
+                }
+                categories.add(model)
             }
         }
 
-        return categories
+        return categories.sortedBy { it.commonCategoryData.priority }
+    }
+
+    /**
+     * Require collection data with at least one wallpaper that carries description content, so
+     * WallpaperEditorActivity is not launched with an empty wp_description.
+     */
+    private fun hasUsableCreativeContent(model: CategoryModel): Boolean {
+        val collection = model.collectionCategoryData ?: return false
+        if (collection.wallpaperModels.isEmpty()) {
+            // Empty categories are treated as create-new (single-wallpaper) and still need a
+            // template row that includes description content. Without any models, skip.
+            return false
+        }
+        return collection.wallpaperModels.any { wallpaper ->
+            val live = wallpaper as? WallpaperModel.LiveWallpaperModel ?: return@any false
+            !live.liveWallpaperData.description.content.keySet().isEmpty()
+        }
     }
 
     override val categories: Flow<List<CategoryModel>> = flowOf(discoverCreativeCategories())
@@ -112,20 +117,14 @@ class CreativeCategoryInteractorImpl @Inject constructor(
     override val standaloneCategories: Flow<List<CategoryModel>> = flowOf(emptyList())
 
     override fun updateCreativeCategories() {
-        // Categories are discovered at initialization
+        // Categories are discovered at initialization. Refresh broadcasts can be added later.
     }
 
     override fun updatePackThemeCategory() {}
 
     companion object {
-        private const val PRIORITY_CREATIVE = 100
-
-        // Known Pixel creative wallpaper packages
-        private val KNOWN_PIXEL_PACKAGES = mapOf(
-            "com.google.android.apps.aiwallpapers" to "AI Wallpapers",
-            "com.google.android.apps.emojiwallpaper" to "Emoji Wallpapers",
-            "com.google.android.wallpaper.effects" to "Wallpaper Effects",
-            "com.google.android.apps.wallpaper.pixel" to "Pixel Wallpapers",
-        )
+        private const val TAG = "CreativeCategoryInteractorImpl"
+        private const val WALLPAPER_CREATION_ACTION =
+            "com.google.android.apps.wallpaper.action.WALLPAPER_CREATION"
     }
 }

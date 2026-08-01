@@ -27,6 +27,9 @@
   <uses-permission android:name="com.android.wallpaper.NOTIFY_ROTATING_WALLPAPER_CHANGED"/>
   <uses-permission android:name="android.permission.SET_WALLPAPER_DIM_AMOUNT" />
   <uses-permission android:name="android.permission.UPDATE_THEME_SETTINGS" />
+  <uses-permission android:name="com.google.android.apps.aiwallpapers.CONFIGURE_WALLPAPERS" />
+  <!-- Required to query Pixel creative wallpaper content providers (AI Wallpapers, etc.). -->
+  <uses-permission android:name="com.google.android.apps.aiwallpapers.CONFIGURE_WALLPAPERS" />
 
   <queries>
       <!-- Specific intents Wallpaper picker query for -->

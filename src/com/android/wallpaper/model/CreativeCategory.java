@@ -160,17 +160,22 @@ public class CreativeCategory extends WallpaperCategory {
      * @param wallpaperInfo contains relevant metadata information about creative-category wallpaper
      * @return list of CreativeWallpaperInfo objects
      */
+    @Nullable
     public static List<WallpaperInfo> readCreativeWallpapers(Context context,
             String collectionId, android.app.WallpaperInfo wallpaperInfo) {
         List<WallpaperInfo> wallpapers = new ArrayList<>();
         Bundle metaData = wallpaperInfo.getServiceInfo().metaData;
-        if (metaData.get(KEY_WALLPAPER_CREATIVE_WALLPAPERS) == null) {
+        if (metaData == null || metaData.get(KEY_WALLPAPER_CREATIVE_WALLPAPERS) == null) {
             return null;
         }
         Uri wallpapersUri = Uri.parse((String) metaData.get(KEY_WALLPAPER_CREATIVE_WALLPAPERS));
         try (ContentProviderClient client =
                      context.getContentResolver().acquireContentProviderClient(
                              wallpapersUri.getAuthority())) {
+            if (client == null) {
+                Log.w(TAG, "Couldn't resolve content provider for " + wallpapersUri);
+                return null;
+            }
             try (Cursor cursor = client.query(wallpapersUri, /* projection= */ null,
                     /* selection= */ null, /* selectionArgs= */ null, /* sortOrder= */ null)) {
                 if (cursor == null || !cursor.moveToFirst()) {
@@ -212,8 +217,75 @@ public class CreativeCategory extends WallpaperCategory {
             }
         } catch (Throwable e) {
             Log.e(TAG, "Exception reading creative wallpapers", e);
+            return null;
         }
         return wallpapers;
+    }
+
+    /**
+     * Reads creative categories advertised by a WALLPAPER_CREATION live wallpaper service.
+     *
+     * <p>Returns an empty list when the service has no category metadata. Returns {@code null}
+     * when the content provider cannot be opened or queried (for example, missing permission),
+     * so callers can omit broken tiles instead of launching an editor without content.
+     */
+    @Nullable
+    public static List<CreativeCategory> readCreativeCategories(Context context,
+            android.app.WallpaperInfo wallpaperInfo) {
+        Bundle metaData = wallpaperInfo.getServiceInfo().metaData;
+        if (metaData == null || metaData.get(KEY_WALLPAPER_CREATIVE_CATEGORY) == null
+                || metaData.get(KEY_WALLPAPER_CREATIVE_WALLPAPERS) == null) {
+            return new ArrayList<>();
+        }
+
+        Uri categoryUri = Uri.parse((String) metaData.get(KEY_WALLPAPER_CREATIVE_CATEGORY));
+        List<CreativeCategory> categories = new ArrayList<>();
+        try (ContentProviderClient client =
+                     context.getContentResolver().acquireContentProviderClient(
+                             categoryUri.getAuthority())) {
+            if (client == null) {
+                Log.w(TAG, "Couldn't resolve content provider for " + categoryUri);
+                return null;
+            }
+            try (Cursor cursor = client.query(categoryUri, /* projection= */ null,
+                    /* selection= */ null, /* selectionArgs= */ null, /* sortOrder= */ null)) {
+                if (cursor == null || !cursor.moveToFirst()) {
+                    return categories;
+                }
+                do {
+                    String collectionId = cursor.getString(
+                            cursor.getColumnIndex(WallpaperInfoContract.CATEGORY_ID));
+                    String title = cursor.getString(
+                            cursor.getColumnIndex(WallpaperInfoContract.CATEGORY_TITLE));
+                    String thumbnail = cursor.getString(
+                            cursor.getColumnIndex(WallpaperInfoContract.CATEGORY_THUMBNAIL));
+                    int priority = cursor.getInt(
+                            cursor.getColumnIndex(WallpaperInfoContract.CATEGORY_PRIORITY));
+                    boolean isCollectionWallpaper = false;
+                    int isCollectionIndex = cursor.getColumnIndex(
+                            WallpaperInfoContract.CATEGORY_IS_COLLECTION_WALLPAPER);
+                    if (isCollectionIndex >= 0) {
+                        isCollectionWallpaper = cursor.getInt(isCollectionIndex) > 0;
+                    }
+                    if (TextUtils.isEmpty(collectionId) || TextUtils.isEmpty(title)) {
+                        continue;
+                    }
+                    List<WallpaperInfo> wallpapers =
+                            readCreativeWallpapers(context, collectionId, wallpaperInfo);
+                    if (wallpapers == null) {
+                        // Provider access failed while loading templates; skip this service.
+                        return null;
+                    }
+                    Uri thumbUri = TextUtils.isEmpty(thumbnail) ? Uri.EMPTY : Uri.parse(thumbnail);
+                    categories.add(new CreativeCategory(context, title, collectionId, thumbUri,
+                            wallpapers, priority, wallpaperInfo, isCollectionWallpaper));
+                } while (cursor.moveToNext());
+            }
+        } catch (Throwable e) {
+            Log.e(TAG, "Exception reading creative categories", e);
+            return null;
+        }
+        return categories;
     }
 
     @Override
