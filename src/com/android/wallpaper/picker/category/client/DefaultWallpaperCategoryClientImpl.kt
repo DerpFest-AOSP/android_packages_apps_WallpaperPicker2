@@ -20,7 +20,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import androidx.annotation.XmlRes
 import com.android.wallpaper.R
 import com.android.wallpaper.model.Category
 import com.android.wallpaper.model.DefaultWallpaperInfo
@@ -193,22 +192,9 @@ constructor(
     override suspend fun getSystemCategories(): List<Category> {
         systemCategories?.let { return it }
 
-        val partnerRes = partnerProvider.resources
-        val packageName = partnerProvider.packageName
-        if (partnerRes == null || packageName == null) {
-            return listOf()
-        }
-
-        @XmlRes val wallpapersResId =
-            partnerRes.getIdentifier(PartnerProvider.WALLPAPER_RES_ID, "xml", packageName)
-        // Certain partner configurations don't have wallpapers provided, so need to check;
-        // return early if they are missing.
-        if (wallpapersResId == 0) {
-            return listOf()
-        }
-
-        systemCategories =
-            wallpaperXMLParser.parseSystemCategories(partnerRes.getXml(wallpapersResId))
+        // Merge wallpapers.xml from every partner APK (e.g. PixelWallpapers) so a legacy OEM
+        // partner like DerpWalls does not block modern system categories, and vice versa.
+        systemCategories = wallpaperXMLParser.parseAllSystemCategories()
         return systemCategories as List<Category>
     }
 

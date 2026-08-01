@@ -17,9 +17,12 @@ package com.android.wallpaper.module;
 
 import android.content.res.Resources;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Provides content from the partner customization on the device.
@@ -56,8 +59,37 @@ public interface PartnerProvider {
     String RES_DEFAULT_WALLPAPER_HIDDEN = "default_wallpapper_hidden";
 
     /**
-     * Returns the Resources object for the partner APK, or null if there is no partner APK on the
-     * device.
+     * A system APK advertising {@link #ACTION_PARTNER_CUSTOMIZATION}.
+     */
+    final class PartnerApk {
+        public final String packageName;
+        public final Resources resources;
+
+        public PartnerApk(@NonNull String packageName, @NonNull Resources resources) {
+            this.packageName = packageName;
+            this.resources = resources;
+        }
+    }
+
+    /**
+     * Returns all system partner customization APKs. Devices may ship more than one (for example
+     * OEM DerpWalls plus PixelWallpapers); callers that need complete wallpaper lists should
+     * consult every entry rather than {@link #getResources()} alone.
+     */
+    @NonNull
+    default List<PartnerApk> getPartnerApks() {
+        Resources resources = getResources();
+        String packageName = getPackageName();
+        if (resources == null || packageName == null) {
+            return Collections.emptyList();
+        }
+        return Collections.singletonList(new PartnerApk(packageName, resources));
+    }
+
+    /**
+     * Returns the Resources object for the primary partner APK, or null if there is no partner APK
+     * on the device. Prefer {@link #getPartnerApks()} when aggregating wallpapers from multiple
+     * partners.
      */
     @Nullable
     Resources getResources();
@@ -70,8 +102,8 @@ public interface PartnerProvider {
     File getLegacyWallpaperDirectory();
 
     /**
-     * Returns the package name of the partner APK, or null if there is no partner APK on the
-     * device.
+     * Returns the package name of the primary partner APK, or null if there is no partner APK on
+     * the device.
      */
     @Nullable String getPackageName();
 
@@ -81,9 +113,8 @@ public interface PartnerProvider {
     void refreshResourcesDueToLocaleChange();
 
     /**
-     * Returns whether the OEM has specified that the built-in system default wallpaper should be
-     * hidden (because OEM has provided their own wallpaper). If no partner customization exists on
-     * the device, returns false.
+     * Returns whether any partner customization APK has specified that the built-in system default
+     * wallpaper should be hidden. If no partner customization exists on the device, returns false.
      */
     boolean shouldHideDefaultWallpaper();
 }

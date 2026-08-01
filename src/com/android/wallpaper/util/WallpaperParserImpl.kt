@@ -17,9 +17,11 @@
 package com.android.wallpaper.util
 
 import android.content.Context
+import android.content.res.Resources
 import android.content.res.XmlResourceParser
 import android.util.Log
 import android.util.Xml
+import com.android.wallpaper.model.Category
 import com.android.wallpaper.model.LiveWallpaperInfo
 import com.android.wallpaper.model.PartnerWallpaperInfo
 import com.android.wallpaper.model.SystemStaticWallpaperInfo
@@ -46,8 +48,18 @@ constructor(
     private val partnerProvider: PartnerProvider,
 ) : WallpaperParser {
 
+    override fun parseSystemCategories(parser: XmlResourceParser): List<Category> {
+        val packageName = partnerProvider.packageName ?: return emptyList()
+        val partnerRes = partnerProvider.resources ?: return emptyList()
+        return parseSystemCategories(packageName, partnerRes, parser)
+    }
+
     /** This method is responsible for parsing the XML file for system categories. */
-    override fun parseSystemCategories(parser: XmlResourceParser): List<WallpaperCategory> {
+    override fun parseSystemCategories(
+        packageName: String,
+        partnerRes: Resources,
+        parser: XmlResourceParser,
+    ): List<Category> {
         val categories = mutableListOf<WallpaperCategory>()
         try {
             var priorityTracker = 0
@@ -59,10 +71,7 @@ constructor(
             ) {
                 if (type == XmlPullParser.START_TAG && WallpaperCategory.TAG_NAME == parser.name) {
                     val categoryBuilder =
-                        WallpaperCategory.Builder(
-                            partnerProvider.resources,
-                            Xml.asAttributeSet(parser),
-                        )
+                        WallpaperCategory.Builder(partnerRes, Xml.asAttributeSet(parser))
                     categoryBuilder.setPriorityIfEmpty(PRIORITY_SYSTEM + priorityTracker++)
                     var publishedPlaceholder = false
                     val categoryDepth = parser.depth
@@ -74,7 +83,7 @@ constructor(
                             val wallpaper =
                                 if (SystemStaticWallpaperInfo.TAG_NAME == parser.name) {
                                     SystemStaticWallpaperInfo.fromAttributeSet(
-                                        partnerProvider.packageName,
+                                        packageName,
                                         categoryBuilder.id,
                                         Xml.asAttributeSet(parser),
                                     )
@@ -114,19 +123,42 @@ constructor(
         return categories
     }
 
+    override fun parseAllSystemCategories(): List<Category> {
+        val categories = mutableListOf<Category>()
+        for (apk in partnerProvider.partnerApks) {
+            val wallpapersResId =
+                apk.resources.getIdentifier(
+                    PartnerProvider.WALLPAPER_RES_ID,
+                    "xml",
+                    apk.packageName,
+                )
+            if (wallpapersResId == 0) {
+                continue
+            }
+            apk.resources.getXml(wallpapersResId).use { parser ->
+                categories.addAll(parseSystemCategories(apk.packageName, apk.resources, parser))
+            }
+        }
+        return categories
+    }
+
     /**
      * This method is responsible for parsing resources for PartnerWallpaperInfo wallpapers and
-     * returning a list of such wallpapers.
+     * returning a list of such wallpapers from every partner APK that ships them.
      */
     override fun parsePartnerWallpaperInfoResources(): List<WallpaperInfo> {
         val wallpaperInfos: MutableList<WallpaperInfo> = ArrayList()
-
-        val partnerRes = partnerProvider.getResources()
-        val packageName = partnerProvider.getPackageName()
-        if (partnerRes == null) {
-            return wallpaperInfos
+        for (apk in partnerProvider.partnerApks) {
+            wallpaperInfos.addAll(parsePartnerWallpaperInfoResources(apk.packageName, apk.resources))
         }
+        return wallpaperInfos
+    }
 
+    private fun parsePartnerWallpaperInfoResources(
+        packageName: String,
+        partnerRes: Resources,
+    ): List<WallpaperInfo> {
+        val wallpaperInfos: MutableList<WallpaperInfo> = ArrayList()
         val resId =
             partnerRes.getIdentifier(PartnerProvider.LEGACY_WALLPAPER_RES_ID, "array", packageName)
         // Certain partner configurations don't have wallpapers provided, so need to check; return
@@ -141,11 +173,10 @@ constructor(
             if (wpResId != 0) {
                 val thumbRes = partnerRes.getIdentifier(extra, "drawable", packageName)
                 if (thumbRes != 0) {
-                    val wallpaperInfo: WallpaperInfo = PartnerWallpaperInfo(thumbRes, wpResId)
-                    wallpaperInfos.add(wallpaperInfo)
+                    wallpaperInfos.add(PartnerWallpaperInfo(packageName, thumbRes, wpResId))
                 }
             } else {
-                Log.e(TAG, "Couldn't find wallpaper $extra")
+                Log.e(TAG, "Couldn't find wallpaper $extra in $packageName")
             }
         }
 

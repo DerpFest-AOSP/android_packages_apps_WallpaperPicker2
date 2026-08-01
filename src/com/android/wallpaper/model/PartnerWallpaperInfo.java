@@ -17,15 +17,19 @@ package com.android.wallpaper.model;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.Parcel;
 import android.util.Log;
+
+import androidx.annotation.Nullable;
 
 import com.android.wallpaper.R;
 import com.android.wallpaper.asset.Asset;
 import com.android.wallpaper.asset.ResourceAsset;
 import com.android.wallpaper.module.InjectorProvider;
 import com.android.wallpaper.module.PartnerProvider;
+import com.android.wallpaper.module.PartnerProvider.PartnerApk;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,12 +53,18 @@ public class PartnerWallpaperInfo extends DefaultWallpaperInfo {
             };
     private int mThumbRes;
     private int mFullRes;
+    @Nullable private String mPackageName;
     private ResourceAsset mAsset;
     private ResourceAsset mThumbAsset;
     private Resources mPartnerResources;
     private boolean mFetchedPartnerResources;
 
     public PartnerWallpaperInfo(int thumbRes, int fullRes) {
+        this(null, thumbRes, fullRes);
+    }
+
+    public PartnerWallpaperInfo(@Nullable String packageName, int thumbRes, int fullRes) {
+        mPackageName = packageName;
         mThumbRes = thumbRes;
         mFullRes = fullRes;
     }
@@ -63,44 +73,47 @@ public class PartnerWallpaperInfo extends DefaultWallpaperInfo {
         super(in);
         mThumbRes = in.readInt();
         mFullRes = in.readInt();
+        mPackageName = in.readString();
     }
 
     /**
      * @param ctx
-     * @return All partner wallpapers found on the device.
+     * @return All partner wallpapers found on the device across every partner customization APK.
      */
     public static List<WallpaperInfo> getAll(Context ctx) {
         PartnerProvider partnerProvider = InjectorProvider.getInjector().getPartnerProvider(ctx);
-
         List<WallpaperInfo> wallpaperInfos = new ArrayList<>();
-
-        final Resources partnerRes = partnerProvider.getResources();
-        final String packageName = partnerProvider.getPackageName();
-        if (partnerRes == null) {
-            return wallpaperInfos;
+        for (PartnerApk apk : partnerProvider.getPartnerApks()) {
+            wallpaperInfos.addAll(getAllFromPartner(apk));
         }
+        return wallpaperInfos;
+    }
 
-        final int resId = partnerRes.getIdentifier(PartnerProvider.LEGACY_WALLPAPER_RES_ID, "array",
-                packageName);
+    private static List<WallpaperInfo> getAllFromPartner(PartnerApk apk) {
+        List<WallpaperInfo> wallpaperInfos = new ArrayList<>();
+        final int resId = apk.resources.getIdentifier(PartnerProvider.LEGACY_WALLPAPER_RES_ID,
+                "array", apk.packageName);
         // Certain partner configurations don't have wallpapers provided, so need to check; return
         // early if they are missing.
         if (resId == 0) {
             return wallpaperInfos;
         }
 
-        final String[] extras = partnerRes.getStringArray(resId);
+        final String[] extras = apk.resources.getStringArray(resId);
         for (String extra : extras) {
-            int wpResId = partnerRes.getIdentifier(extra, "drawable", packageName);
+            int wpResId = apk.resources.getIdentifier(extra, "drawable", apk.packageName);
             if (wpResId != 0) {
-                final int thumbRes = partnerRes.getIdentifier(extra, "drawable", packageName);
+                final int thumbRes = apk.resources.getIdentifier(extra, "drawable", apk.packageName);
 
                 if (thumbRes != 0) {
-                    final int fullRes = partnerRes.getIdentifier(extra, "drawable", packageName);
-                    WallpaperInfo wallpaperInfo = new PartnerWallpaperInfo(thumbRes, fullRes);
-                    wallpaperInfos.add(wallpaperInfo);
+                    final int fullRes =
+                            apk.resources.getIdentifier(extra, "drawable", apk.packageName);
+                    wallpaperInfos.add(
+                            new PartnerWallpaperInfo(apk.packageName, thumbRes, fullRes));
                 }
             } else {
-                Log.e("PartnerWallpaperInfo", "Couldn't find wallpaper " + extra);
+                Log.e("PartnerWallpaperInfo", "Couldn't find wallpaper " + extra
+                        + " in " + apk.packageName);
             }
         }
 
@@ -109,8 +122,20 @@ public class PartnerWallpaperInfo extends DefaultWallpaperInfo {
 
     private Resources getPartnerResources(Context context) {
         if (!mFetchedPartnerResources) {
-            PartnerProvider partnerProvider = InjectorProvider.getInjector().getPartnerProvider(context);
-            mPartnerResources = partnerProvider.getResources();
+            if (mPackageName != null) {
+                try {
+                    mPartnerResources =
+                            context.getPackageManager().getResourcesForApplication(mPackageName);
+                } catch (PackageManager.NameNotFoundException e) {
+                    Log.w("PartnerWallpaperInfo",
+                            "Failed to load resources for partner package " + mPackageName, e);
+                }
+            }
+            if (mPartnerResources == null) {
+                PartnerProvider partnerProvider =
+                        InjectorProvider.getInjector().getPartnerProvider(context);
+                mPartnerResources = partnerProvider.getResources();
+            }
             mFetchedPartnerResources = true;
         }
 
@@ -176,6 +201,7 @@ public class PartnerWallpaperInfo extends DefaultWallpaperInfo {
         super.writeToParcel(parcel, i);
         parcel.writeInt(mThumbRes);
         parcel.writeInt(mFullRes);
+        parcel.writeString(mPackageName);
     }
 
 }

@@ -17,9 +17,13 @@ package com.android.wallpaper.testing;
 
 import android.content.res.Resources;
 
+import androidx.annotation.NonNull;
+
 import com.android.wallpaper.module.PartnerProvider;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.List;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -48,6 +52,16 @@ public class TestPartnerProvider implements PartnerProvider {
     public void setResources(Resources mResources) {
         this.mResources = mResources;
     }
+
+    @NonNull
+    @Override
+    public List<PartnerApk> getPartnerApks() {
+        if (mResources == null || mPackageName == null) {
+            return Collections.emptyList();
+        }
+        return Collections.singletonList(new PartnerApk(mPackageName, mResources));
+    }
+
     @Override
     public File getLegacyWallpaperDirectory() {
         return mLegacyWallpaperDirectory;

@@ -238,22 +238,24 @@ public class DefaultCategoryProvider implements CategoryProvider {
         }
 
         protected List<Category> getSystemCategories() {
-            Resources partnerRes = mPartnerProvider.getResources();
-            String packageName = mPartnerProvider.getPackageName();
             List<Category> categories = new ArrayList<>();
-            if (partnerRes == null || packageName == null) {
-                return categories;
+            // Merge wallpapers.xml from every partner APK so OEM legacy partners and Pixel
+            // system wallpaper packages can coexist.
+            for (PartnerProvider.PartnerApk apk : mPartnerProvider.getPartnerApks()) {
+                categories.addAll(parseSystemCategoriesFromPartner(apk));
             }
+            return categories;
+        }
 
-            @XmlRes int wallpapersResId = partnerRes.getIdentifier(PartnerProvider.WALLPAPER_RES_ID,
-                    "xml", packageName);
-            // Certain partner configurations don't have wallpapers provided, so need to check;
-            // return early if they are missing.
+        private List<Category> parseSystemCategoriesFromPartner(PartnerProvider.PartnerApk apk) {
+            List<Category> categories = new ArrayList<>();
+            @XmlRes int wallpapersResId = apk.resources.getIdentifier(
+                    PartnerProvider.WALLPAPER_RES_ID, "xml", apk.packageName);
             if (wallpapersResId == 0) {
                 return categories;
             }
 
-            try (XmlResourceParser parser = partnerRes.getXml(wallpapersResId)) {
+            try (XmlResourceParser parser = apk.resources.getXml(wallpapersResId)) {
                 final int depth = parser.getDepth();
                 int type;
                 int priorityTracker = 0;
@@ -263,7 +265,7 @@ public class DefaultCategoryProvider implements CategoryProvider {
                             && WallpaperCategory.TAG_NAME.equals(parser.getName())) {
 
                         WallpaperCategory.Builder categoryBuilder =
-                                new WallpaperCategory.Builder(mPartnerProvider.getResources(),
+                                new WallpaperCategory.Builder(apk.resources,
                                         Xml.asAttributeSet(parser));
                         categoryBuilder.setPriorityIfEmpty(PRIORITY_SYSTEM + priorityTracker++);
                         final int categoryDepth = parser.getDepth();
@@ -274,7 +276,7 @@ public class DefaultCategoryProvider implements CategoryProvider {
                                 WallpaperInfo wallpaper = null;
                                 if (SystemStaticWallpaperInfo.TAG_NAME.equals(parser.getName())) {
                                     wallpaper = SystemStaticWallpaperInfo
-                                            .fromAttributeSet(mPartnerProvider.getPackageName(),
+                                            .fromAttributeSet(apk.packageName,
                                                     categoryBuilder.getId(),
                                                     Xml.asAttributeSet(parser));
 
@@ -295,7 +297,8 @@ public class DefaultCategoryProvider implements CategoryProvider {
                     }
                 }
             } catch (IOException | XmlPullParserException e) {
-                Log.w(TAG, "Couldn't read system wallpapers definition", e);
+                Log.w(TAG, "Couldn't read system wallpapers definition from "
+                        + apk.packageName, e);
                 return Collections.emptyList();
             }
             return categories;

@@ -16,12 +16,22 @@
 
 package com.android.wallpaper.util
 
+import android.content.res.Resources
 import android.content.res.XmlResourceParser
 import com.android.wallpaper.model.Category
 import com.android.wallpaper.model.WallpaperInfo
 
 interface WallpaperParser {
     fun parseSystemCategories(parser: XmlResourceParser): List<Category>
+
+    fun parseSystemCategories(
+        packageName: String,
+        partnerRes: Resources,
+        parser: XmlResourceParser,
+    ): List<Category>
+
+    /** System categories from every partner APK that ships {@code wallpapers.xml}. */
+    fun parseAllSystemCategories(): List<Category>
 
     fun parsePartnerWallpaperInfoResources(): List<WallpaperInfo>
 }
