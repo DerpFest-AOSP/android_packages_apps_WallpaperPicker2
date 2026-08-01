@@ -177,7 +177,18 @@ constructor(
         }
         // Cinematic wallpaper-effects service is not a user-selectable live wallpaper.
         excluded.add(WALLPAPER_EFFECTS_PACKAGE)
+        // Pixel creative packages (AI, Emoji, …) advertise WALLPAPER_CREATION and require an
+        // asset id / WallpaperDescription. Listing them as plain live wallpapers yields empty
+        // previews ("onCreateEngine call with no asset id"). They belong in creative categories.
+        excluded.addAll(getCreativeWallpaperPackageNames())
         return excluded
+    }
+
+    private fun getCreativeWallpaperPackageNames(): Set<String> {
+        val intent = Intent(WALLPAPER_CREATION_ACTION)
+        return context.packageManager
+            .queryIntentServices(intent, PackageManager.GET_META_DATA)
+            .mapNotNullTo(mutableSetOf()) { it.serviceInfo?.packageName }
     }
 
     override fun getExcludedThirdPartyPackageNames(): List<String> {
@@ -210,6 +221,8 @@ constructor(
         private const val TAG = "DefaultWallpaperCategoryClientImpl"
         private const val LAUNCHER_PACKAGE = "com.android.launcher"
         private const val LIVE_WALLPAPER_PICKER = "com.android.wallpaper.livepicker"
+        private const val WALLPAPER_CREATION_ACTION =
+            "com.google.android.apps.wallpaper.action.WALLPAPER_CREATION"
 
         /** Pixel cinematic effects package — exclude from third-party live wallpaper tiles. */
         const val WALLPAPER_EFFECTS_PACKAGE = "com.google.android.wallpaper.effects"
