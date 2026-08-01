@@ -176,6 +176,8 @@ constructor(
         } else {
             excluded.add(DefaultExtendedEffectsHelper.MAGIC_PORTRAIT_PACKAGE)
         }
+        // Cinematic wallpaper-effects service is not a user-selectable live wallpaper.
+        excluded.add(WALLPAPER_EFFECTS_PACKAGE)
         return excluded
     }
 
@@ -222,6 +224,9 @@ constructor(
         private const val TAG = "DefaultWallpaperCategoryClientImpl"
         private const val LAUNCHER_PACKAGE = "com.android.launcher"
         private const val LIVE_WALLPAPER_PICKER = "com.android.wallpaper.livepicker"
+
+        /** Pixel cinematic effects package — exclude from third-party live wallpaper tiles. */
+        const val WALLPAPER_EFFECTS_PACKAGE = "com.google.android.wallpaper.effects"
 
         /**
          * Relative category priorities. Lower numbers correspond to higher priorities (i.e., should

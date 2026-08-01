@@ -216,6 +216,8 @@ public class DefaultCategoryProvider implements CategoryProvider {
             }
             // Exclude Magic Portrait: previewing without a description crashes the service.
             excluded.add(DefaultExtendedEffectsHelper.MAGIC_PORTRAIT_PACKAGE);
+            // Cinematic wallpaper-effects service is not a user-selectable live wallpaper.
+            excluded.add("com.google.android.wallpaper.effects");
             return excluded;
         }
 
