@@ -331,6 +331,11 @@ public class LiveWallpaperThumbAsset extends Asset {
 
         Drawable fromUri = loadThumbnailFromUri();
         Drawable thumb = (fromUri != null) ? fromUri : loadThumbnailFromInfo();
+        // Pixel live wallpaper thumbs may ship as LayerDrawable (e.g. light/dark). Peel the
+        // device-appropriate layer before Glide / bitmap decode, matching Google's picker.
+        if (thumb instanceof LayerDrawable) {
+            thumb = mLayerResolver.resolveLayer((LayerDrawable) thumb);
+        }
 
         if (mShouldCacheThumbnail) mCachedThumbnail = thumb;
 
