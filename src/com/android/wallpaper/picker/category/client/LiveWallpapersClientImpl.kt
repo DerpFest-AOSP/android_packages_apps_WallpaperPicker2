@@ -28,11 +28,12 @@ import com.android.wallpaper.module.InjectorProvider
 import com.android.wallpaper.module.ThirdPartyLiveWallpaperModelFactory
 import com.android.wallpaper.picker.data.WallpaperModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import org.xmlpull.v1.XmlPullParserException
+import java.io.File
 import java.io.IOException
 import java.text.Collator
 import javax.inject.Inject
 import javax.inject.Singleton
+import org.xmlpull.v1.XmlPullParserException
 
 /**
  * Defines methods related to handling of live wallpapers.
@@ -48,6 +49,7 @@ class LiveWallpapersClientImpl @Inject constructor(@ApplicationContext val conte
         val wallpaperInfos: MutableList<WallpaperInfo> = mutableListOf()
         val factory =
             InjectorProvider.getInjector().getLiveWallpaperInfoFactory(context)
+        val creativeServices = getCreativeWallpaperServiceNames()
 
         resolveInfos.forEach { resolveInfo ->
             val wallpaperInfo: android.app.WallpaperInfo
@@ -62,6 +64,13 @@ class LiveWallpapersClientImpl @Inject constructor(@ApplicationContext val conte
             }
             if (excludedPackageNames != null
                 && excludedPackageNames.contains(wallpaperInfo.packageName)) {
+                return@forEach
+            }
+            if (creativeServices.contains(wallpaperInfo.serviceName)) {
+                return@forEach
+            }
+            if (!hasRequiredProductVideoAssets(wallpaperInfo.serviceName)) {
+                Log.w(TAG, "Skipping ${wallpaperInfo.serviceName} — missing /product/wallpaper assets")
                 return@forEach
             }
             wallpaperInfos.add(factory.getLiveWallpaperInfo(wallpaperInfo))
@@ -127,6 +136,7 @@ class LiveWallpapersClientImpl @Inject constructor(@ApplicationContext val conte
         excludedPackageNames: Set<String?>?
     ): List<WallpaperModel> {
         val resolveInfos = getAllOnDevice()
+        val creativeServices = getCreativeWallpaperServiceNames()
 
         return resolveInfos
                 .mapNotNull { resolveInfo ->
@@ -143,9 +153,34 @@ class LiveWallpapersClientImpl @Inject constructor(@ApplicationContext val conte
                         !it.contains(wallpaperInfo.packageName)
                     } ?: true
                 }
+                .filter { wallpaperInfo ->
+                    !creativeServices.contains(wallpaperInfo.serviceName)
+                }
+                .filter { wallpaperInfo ->
+                    hasRequiredProductVideoAssets(wallpaperInfo.serviceName)
+                }
                 .mapNotNull { wallpaperInfo ->
                     thirdPartyLiveWallpaperModelFactory.getLiveWallpaperModel(wallpaperInfo)
                 }
+    }
+
+    /**
+     * Service names that advertise [WALLPAPER_CREATION_ACTION]. Sibling services in the same package
+     * (e.g. Abalone / Sterling) are not included.
+     */
+    private fun getCreativeWallpaperServiceNames(): Set<String> {
+        return context.packageManager
+            .queryIntentServices(Intent(WALLPAPER_CREATION_ACTION), PackageManager.GET_META_DATA)
+            .mapNotNullTo(mutableSetOf()) { it.serviceInfo?.name }
+    }
+
+    /**
+     * Returns false when this service is a known product-video live wallpaper and any required
+     * asset file is missing. Unrelated services always return true.
+     */
+    private fun hasRequiredProductVideoAssets(serviceName: String): Boolean {
+        val required = PRODUCT_VIDEO_REQUIRED_ASSETS[serviceName] ?: return true
+        return required.all { File(it).exists() }
     }
 
     private fun isSystemApp(appInfo: ApplicationInfo): Boolean {
@@ -154,5 +189,33 @@ class LiveWallpapersClientImpl @Inject constructor(@ApplicationContext val conte
 
     companion object {
         private const val TAG = "LiveWallpapersClient"
+        private const val WALLPAPER_CREATION_ACTION =
+            "com.google.android.apps.wallpaper.action.WALLPAPER_CREATION"
+
+        /**
+         * Product-partition video live wallpapers (Abalone / Mantis). The engine kills itself when
+         * any of these files are missing.
+         */
+        private val PRODUCT_VIDEO_REQUIRED_ASSETS =
+            mapOf(
+                "com.google.pixel.wallpapers25.video.sterling.SterlingWallpaperService" to
+                    listOf(
+                        "/product/wallpaper/video/sterling.mp4",
+                        "/product/wallpaper/video/sterling_dark.mp4",
+                        "/product/wallpaper/image/front_sterling.jpg",
+                        "/product/wallpaper/image/front_sterling_dark.jpg",
+                        "/product/wallpaper/image/fallback_sterling.jpg",
+                        "/product/wallpaper/image/fallback_sterling_dark.jpg",
+                    ),
+                "com.google.pixel.wallpapers25.video.green.GreenWallpaperService" to
+                    listOf(
+                        "/product/wallpaper/video/green.mp4",
+                        "/product/wallpaper/video/green_dark.mp4",
+                        "/product/wallpaper/image/front_green.jpg",
+                        "/product/wallpaper/image/front_green_dark.jpg",
+                        "/product/wallpaper/image/fallback_green.jpg",
+                        "/product/wallpaper/image/fallback_green_dark.jpg",
+                    ),
+            )
     }
 }

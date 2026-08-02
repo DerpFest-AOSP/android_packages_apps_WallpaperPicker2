@@ -16,7 +16,6 @@
 package com.android.wallpaper.module;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.content.res.XmlResourceParser;
@@ -219,24 +218,9 @@ public class DefaultCategoryProvider implements CategoryProvider {
             excluded.add(DefaultExtendedEffectsHelper.MAGIC_PORTRAIT_PACKAGE);
             // Cinematic wallpaper-effects service is not a user-selectable live wallpaper.
             excluded.add("com.google.android.wallpaper.effects");
-            // Creative wallpaper packages need asset ids; listing them as plain live wallpapers
-            // produces empty previews. They are exposed via creative categories instead.
-            excluded.addAll(getCreativeWallpaperPackageNames());
+            // Creative WALLPAPER_CREATION *services* are filtered in LiveWallpapersClientImpl /
+            // LiveWallpaperInfo so sibling services (e.g. Abalone) remain visible.
             return excluded;
-        }
-
-        private Set<String> getCreativeWallpaperPackageNames() {
-            Intent intent = new Intent(
-                    "com.google.android.apps.wallpaper.action.WALLPAPER_CREATION");
-            Set<String> packages = new HashSet<>();
-            for (android.content.pm.ResolveInfo info :
-                    mAppContext.getPackageManager().queryIntentServices(
-                            intent, PackageManager.GET_META_DATA)) {
-                if (info.serviceInfo != null) {
-                    packages.add(info.serviceInfo.packageName);
-                }
-            }
-            return packages;
         }
 
         protected List<String> getExcludedThirdPartyPackageNames() {

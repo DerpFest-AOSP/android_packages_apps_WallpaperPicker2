@@ -43,14 +43,17 @@ import com.android.wallpaper.util.ActivityUtils;
 
 import org.xmlpull.v1.XmlPullParserException;
 
+import java.io.File;
 import java.io.IOException;
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -79,6 +82,29 @@ public class LiveWallpaperInfo extends WallpaperInfo {
     public static final String ATTR_SERVICE = "service";
     public static final String MULTIPLE_ENGINE_METADATA_NAME =
             "com.android.wallpaper.supports_multiple_engines";
+
+    private static final String WALLPAPER_CREATION_ACTION =
+            "com.google.android.apps.wallpaper.action.WALLPAPER_CREATION";
+
+    private static final Map<String, String[]> PRODUCT_VIDEO_REQUIRED_ASSETS = Map.of(
+            "com.google.pixel.wallpapers25.video.sterling.SterlingWallpaperService",
+            new String[] {
+                    "/product/wallpaper/video/sterling.mp4",
+                    "/product/wallpaper/video/sterling_dark.mp4",
+                    "/product/wallpaper/image/front_sterling.jpg",
+                    "/product/wallpaper/image/front_sterling_dark.jpg",
+                    "/product/wallpaper/image/fallback_sterling.jpg",
+                    "/product/wallpaper/image/fallback_sterling_dark.jpg",
+            },
+            "com.google.pixel.wallpapers25.video.green.GreenWallpaperService",
+            new String[] {
+                    "/product/wallpaper/video/green.mp4",
+                    "/product/wallpaper/video/green_dark.mp4",
+                    "/product/wallpaper/image/front_green.jpg",
+                    "/product/wallpaper/image/front_green_dark.jpg",
+                    "/product/wallpaper/image/fallback_green.jpg",
+                    "/product/wallpaper/image/fallback_green_dark.jpg",
+            });
 
     /**
      * Creates a new {@link LiveWallpaperInfo} from an XML {@link AttributeSet}
@@ -215,6 +241,7 @@ public class LiveWallpaperInfo extends WallpaperInfo {
         List<WallpaperInfo> wallpaperInfos = new ArrayList<>();
         LiveWallpaperInfoFactory factory =
                 InjectorProvider.getInjector().getLiveWallpaperInfoFactory(context);
+        Set<String> creativeServiceNames = getCreativeWallpaperServiceNames(context);
         for (int i = 0; i < resolveInfos.size(); i++) {
             ResolveInfo resolveInfo = resolveInfos.get(i);
             android.app.WallpaperInfo wallpaperInfo;
@@ -230,10 +257,45 @@ public class LiveWallpaperInfo extends WallpaperInfo {
                 continue;
             }
 
+            if (creativeServiceNames.contains(wallpaperInfo.getServiceName())) {
+                continue;
+            }
+
+            if (!hasRequiredProductVideoAssets(wallpaperInfo.getServiceName())) {
+                Log.w(TAG, "Skipping " + wallpaperInfo.getServiceName()
+                        + " — missing /product/wallpaper assets");
+                continue;
+            }
+
             wallpaperInfos.add(factory.getLiveWallpaperInfo(wallpaperInfo));
         }
 
         return wallpaperInfos;
+    }
+
+    private static Set<String> getCreativeWallpaperServiceNames(Context context) {
+        Set<String> serviceNames = new HashSet<>();
+        List<ResolveInfo> resolveInfos = context.getPackageManager().queryIntentServices(
+                new Intent(WALLPAPER_CREATION_ACTION), PackageManager.GET_META_DATA);
+        for (ResolveInfo info : resolveInfos) {
+            if (info.serviceInfo != null) {
+                serviceNames.add(info.serviceInfo.name);
+            }
+        }
+        return serviceNames;
+    }
+
+    private static boolean hasRequiredProductVideoAssets(String serviceName) {
+        String[] required = PRODUCT_VIDEO_REQUIRED_ASSETS.get(serviceName);
+        if (required == null) {
+            return true;
+        }
+        for (String path : required) {
+            if (!new File(path).exists()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
