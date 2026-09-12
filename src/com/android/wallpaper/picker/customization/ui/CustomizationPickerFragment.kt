@@ -311,39 +311,33 @@ class CustomizationPickerFragment :
         customizationFloatingSheetContainer.visibility = View.INVISIBLE
 
         // Listen to the window's bottom nav bar height and the top status bar height and update the
-        // layout padding accordingly.
+        // layout padding accordingly. Do not skip the "nav visible + bottom 0" case: that is the
+        // steady state when the navigation hint is hidden, not only a transient rotation pass.
         ViewCompat.setOnApplyWindowInsetsListener(pickerMotionContainer) { _, windowInsets ->
             val insets: Insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val isVisible = windowInsets.isVisible(WindowInsetsCompat.Type.navigationBars())
-            if (!(insets.bottom == 0 && isVisible)) {
-                // We should do nothing in the case of "bottom inset 0 with nav bar visible".
-                // The event usually happens when the system dispatches an initial pass to reset the
-                // layout or prepare for the new orientation. This event is usually followed up
-                // with another insets update where the bottom inset is no longer 0.
-                applySystemBarInsets(
-                    toolbarContainer = toolbarContainer,
-                    optionContainer = optionContainer,
-                    customizationFloatingSheetContainer = customizationFloatingSheetContainer,
-                    statusBarHeight = insets.top,
-                    navBarHeight = insets.bottom,
-                )
+            applySystemBarInsets(
+                toolbarContainer = toolbarContainer,
+                optionContainer = optionContainer,
+                customizationFloatingSheetContainer = customizationFloatingSheetContainer,
+                statusBarHeight = insets.top,
+                navBarHeight = insets.bottom,
+            )
 
-                if (isMotionContainerInitialized && !isDesktopUi) {
-                    // Reconfigure motion container constraints if already initialized, to adjust
-                    // for new insets (doing it only after it's initialized to avoid jumping if
-                    // insets first arrive before the first initialization)
-                    view.post {
-                        updateHeaderHeightConstraints(
-                            pickerMotionContainer = pickerMotionContainer,
-                            wallpaperPickerEntry =
-                                view.requireViewById(R.id.wallpaper_picker_entry),
-                            previewLabelHeight =
-                                view.requireViewById<View>(R.id.label_placeholder).height,
-                            optionContainerHeight = optionContainer.height,
-                            packThemeSuggestedChip = packThemeSuggestedChip,
-                            bottomInset = insets.bottom,
-                        )
-                    }
+            if (isMotionContainerInitialized && !isDesktopUi) {
+                // Reconfigure motion container constraints if already initialized, to adjust
+                // for new insets (doing it only after it's initialized to avoid jumping if
+                // insets first arrive before the first initialization)
+                view.post {
+                    updateHeaderHeightConstraints(
+                        pickerMotionContainer = pickerMotionContainer,
+                        wallpaperPickerEntry =
+                            view.requireViewById(R.id.wallpaper_picker_entry),
+                        previewLabelHeight =
+                            view.requireViewById<View>(R.id.label_placeholder).height,
+                        optionContainerHeight = optionContainer.height,
+                        packThemeSuggestedChip = packThemeSuggestedChip,
+                        bottomInset = insets.bottom,
+                    )
                 }
             }
             WindowInsetsCompat.CONSUMED
