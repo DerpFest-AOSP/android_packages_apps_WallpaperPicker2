@@ -164,6 +164,7 @@ object WallpaperPickerEntryBinder {
                     view.moreWallpapersButton,
                     ColorStateList.valueOf(color),
                 )
+                view.moreWallpapersButton.setTextColor(color)
                 TextViewCompat.setCompoundDrawableTintList(
                     view.collapsedButton,
                     ColorStateList.valueOf(color),
