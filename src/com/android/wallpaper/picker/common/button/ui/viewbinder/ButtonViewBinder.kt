@@ -22,22 +22,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import androidx.annotation.LayoutRes
-import com.android.wallpaper.R
 import com.android.wallpaper.picker.common.button.ui.viewmodel.ButtonViewModel
 import com.android.wallpaper.picker.common.text.ui.viewbinder.TextViewBinder
 
 object ButtonViewBinder {
     /** Returns a newly-created [View] that's already bound to the given [ButtonViewModel]. */
-    fun create(
-        context: Context,
-        parent: ViewGroup,
-        viewModel: ButtonViewModel,
-        @LayoutRes buttonLayoutResourceId: Int = R.layout.dialog_button,
-    ): View {
-        val button: Button = LayoutInflater.from(context).inflate(buttonLayoutResourceId, parent, false) as Button
-        button.setTextColor(parent.resources.getColor(viewModel.style.textColorRes, null))
-        button.setBackgroundResource(viewModel.style.backgroundDrawableRes)
+    fun create(context: Context, parent: ViewGroup, viewModel: ButtonViewModel): View {
+        val button =
+            LayoutInflater.from(context).inflate(viewModel.style.layoutRes, parent, false) as Button
         button.setOnClickListener { viewModel.onClicked?.invoke() }
 
         TextViewBinder.bind(

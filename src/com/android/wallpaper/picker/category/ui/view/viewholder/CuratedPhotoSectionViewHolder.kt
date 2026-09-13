@@ -24,11 +24,9 @@ import android.graphics.Rect
 import android.util.Log
 import android.view.View
 import android.view.ViewStub
-import android.widget.Button
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.core.graphics.drawable.DrawableCompat
-import androidx.core.widget.TextViewCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.recyclerview.widget.RecyclerView
 import com.android.wallpaper.R
@@ -42,6 +40,7 @@ import com.android.wallpaper.picker.customization.ui.view.listener.CarouselHoriz
 import com.android.wallpaper.picker.customization.ui.viewmodel.ColorUpdateViewModel
 import com.android.wallpaper.picker.data.PhotosErrorData
 import com.android.wallpaper.util.CuratedPhotosTimeUtil
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.carousel.CarouselLayoutManager
 import com.google.android.material.carousel.CarouselSnapHelper
 
@@ -61,7 +60,7 @@ class CuratedPhotoSectionViewHolder(
     private val sectionTitle: TextView = itemView.requireViewById(R.id.section_title)
     private val morePhotosLabel: TextView = itemView.requireViewById(R.id.more_photos_label)
 
-    private val morePhotosButton: Button = itemView.requireViewById(R.id.more_photos_button)
+    private val morePhotosButton: MaterialButton = itemView.requireViewById(R.id.more_photos_button)
     private val categoryHeader: RelativeLayout = itemView.requireViewById(R.id.category_header)
     private val snapHelper = CarouselSnapHelper()
 
@@ -98,12 +97,7 @@ class CuratedPhotoSectionViewHolder(
 
         // setting the icon color of the button
         ColorUpdateBinder.bind(
-            setColor = { color ->
-                TextViewCompat.setCompoundDrawableTintList(
-                    morePhotosButton,
-                    ColorStateList.valueOf(color),
-                )
-            },
+            setColor = { color -> morePhotosButton.iconTint = ColorStateList.valueOf(color) },
             color = colorUpdateViewModel.colorOnPrimary,
             shouldAnimate = shouldAnimateColor,
             lifecycleOwner = lifecycleOwner,
@@ -120,7 +114,7 @@ class CuratedPhotoSectionViewHolder(
         // setting background of the button
         ColorUpdateBinder.bind(
             setColor = { color ->
-                DrawableCompat.setTint(DrawableCompat.wrap(morePhotosButton.background), color)
+                morePhotosButton.backgroundTintList = ColorStateList.valueOf(color)
             },
             color = colorUpdateViewModel.colorPrimary,
             shouldAnimate = shouldAnimateColor,

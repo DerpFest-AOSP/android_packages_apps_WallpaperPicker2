@@ -40,7 +40,6 @@ object DialogViewBinder {
         viewModel: DialogViewModel,
         onDismissed: (() -> Unit)? = null,
         @LayoutRes dialogLayoutResourceId: Int = R.layout.dialog_view,
-        @LayoutRes buttonLayoutResourceId: Int = R.layout.dialog_button,
         @StyleRes dialogStyleResourceId: Int = R.style.LightDialogTheme,
     ): Dialog {
         val view = LayoutInflater.from(context).inflate(dialogLayoutResourceId, null)
@@ -112,7 +111,6 @@ object DialogViewBinder {
                                 dialog.dismiss()
                             },
                         ),
-                    buttonLayoutResourceId = buttonLayoutResourceId,
                 )
             )
         }
