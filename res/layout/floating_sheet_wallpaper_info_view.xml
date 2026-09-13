@@ -26,7 +26,7 @@
         android:id="@+id/wallpaper_info_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAppearance="@style/TitleTextAppearance"
+        android:textAppearance="@style/TextAppearance.SettingsLib.TitleLarge"
         android:textColor="@color/materialColorOnSurface" />
 
     <TextView
@@ -34,8 +34,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/wallpaper_info_pane_subtitle1_top_margin"
+        android:textAppearance="@style/TextAppearance.SettingsLib.BodyMedium"
         android:textColor="@color/materialColorOnSurfaceVariant"
-        android:textSize="14sp"
         android:visibility="gone" />
 
     <TextView
@@ -43,8 +43,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/wallpaper_info_pane_subtitle2_top_margin"
+        android:textAppearance="@style/TextAppearance.SettingsLib.BodyMedium"
         android:textColor="@color/materialColorOnSurfaceVariant"
-        android:textSize="14sp"
         android:visibility="gone" />
 
     <Button

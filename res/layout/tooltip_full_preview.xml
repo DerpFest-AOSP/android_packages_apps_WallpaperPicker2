@@ -38,6 +38,7 @@
         android:background="@drawable/small_preview_tab_background_selected"
         android:padding="12dp"
         android:text="@string/full_preview_tooltip"
+        android:textAppearance="@style/TextAppearance.SettingsLib.BodyMedium"
         android:textColor="@color/system_on_primary"
         android:drawableStart="@drawable/ic_pinch"
         android:drawablePadding="10dp"

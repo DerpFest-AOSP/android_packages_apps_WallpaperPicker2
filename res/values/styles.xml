@@ -152,24 +152,22 @@
 
     <style name="SubtitleTextAppearance" parent="@android:style/TextAppearance.DeviceDefault.Widget.ActionBar.Subtitle"/>
 
-    <style name="SeparatedTabsTextAppearance" parent="TitleTextAppearance">
-        <item name="android:textStyle" />
+    <style name="SeparatedTabsTextAppearance" parent="TextAppearance.SettingsLib.LabelLarge">
         <item name="textAllCaps">false</item>
-        <item name="android:textSize">14sp</item>
-        <item name="android:letterSpacing">0.02</item>
     </style>
 
-    <style name="CategorySectionTitleTextAppearance" parent="TitleTextAppearance">
+    <style name="CategorySectionTitleTextAppearance" parent="TextAppearance.SettingsLib.TitleMedium">
         <item name="android:color">@color/system_on_surface</item>
-        <item name="android:textStyle" />
         <item name="textAllCaps">false</item>
-        <item name="android:textSize">16sp</item>
-        <item name="android:textFontWeight">500</item>
     </style>
 
     <style name="CategorySectionTitleTextAppearance.TitleMedium" />
 
-    <style name="CategorySectionTitleTextAppearance.TitleMediumEmphasized" />
+    <style name="CategorySectionTitleTextAppearance.TitleMediumEmphasized"
+        parent="TextAppearance.SettingsLib.TitleMedium.Emphasized">
+        <item name="android:color">@color/system_on_surface</item>
+        <item name="textAllCaps">false</item>
+    </style>
 
     <!-- Individual components / Widgets -->
     <style name="OutlinedButtonStyle"  parent="@android:style/Widget.DeviceDefault.Button">
@@ -200,22 +198,22 @@
     </style>
 
     <style name="WallpaperPicker.Preview.TextAppearance.NoAllCaps"
-        parent="@android:style/TextAppearance.DeviceDefault.Widget.TabWidget">
+        parent="TextAppearance.SettingsLib.LabelLarge">
         <item name="android:textAllCaps">false</item>
     </style>
 
     <style name="WallpaperPicker.Preview.TextAppearance.NoAllCaps.LabelLarge" />
 
-    <style name="WallpaperPicker.Preview.TextAppearance.NoAllCaps.LabelLargeEmphasized" />
+    <style name="WallpaperPicker.Preview.TextAppearance.NoAllCaps.LabelLargeEmphasized"
+        parent="TextAppearance.SettingsLib.LabelLarge.Emphasized">
+        <item name="android:textAllCaps">false</item>
+    </style>
 
     <!-- Set wallpaper destination item -->
-    <style name="set_wallpaper_destination_item">
-        <item name="android:fontFamily">@*android:string/config_bodyFontFamilyMedium</item>
+    <style name="set_wallpaper_destination_item" parent="TextAppearance.SettingsLib.LabelLarge">
         <item name="android:minHeight">@dimen/set_wallpaper_dialog_item_min_height</item>
         <item name="android:minWidth">@dimen/set_wallpaper_dialog_item_min_width</item>
         <item name="android:textAlignment">center</item>
-        <item name="android:textSize">@dimen/abc_text_size_small_material</item>
-        <item name="android:letterSpacing">0.02</item>
         <item name="android:gravity">center</item>
         <item name="android:background">@drawable/dialog_option_background</item>
     </style>
@@ -278,16 +276,11 @@
     </style>
 
     <!-- CollapsingToolbarTitle -->
-    <style name="CollapsingToolbar.Collapsed"
-        parent="@android:style/TextAppearance.DeviceDefault.Widget.ActionBar.Title">
-        <item name="android:fontFamily">google-sans</item>
-        <item name="android:textSize">20sp</item>
+    <style name="CollapsingToolbar.Collapsed" parent="TextAppearance.SettingsLib.TitleLarge.Emphasized">
         <item name="android:textColor">@color/settingslib_text_color_primary_device_default</item>
     </style>
 
-    <style name="CollapsingToolbar.Expanded" parent="CollapsingToolbarTitle.Collapsed">
-        <item name="android:fontFamily">google-sans</item>
-        <item name="android:textSize">36sp</item>
+    <style name="CollapsingToolbar.Expanded" parent="TextAppearance.SettingsLib.DisplaySmall">
         <item name="android:textColor">@color/settingslib_text_color_primary_device_default</item>
     </style>
 
@@ -316,16 +309,15 @@
         <item name="android:background">@drawable/set_wallpaper_dialog_text_button</item>
     </style>
 
-    <style name="TextAppearance.SetWallpaperDialog.Title" parent="@android:style/TextAppearance.DeviceDefault.Large">
+    <style name="TextAppearance.SetWallpaperDialog.Title" parent="TextAppearance.SettingsLib.HeadlineSmall">
         <item name="android:textColor">@color/system_on_surface_variant</item>
-        <item name="android:textSize">24sp</item>
         <item name="android:gravity">center</item>
         <item name="android:textAlignment">center</item>
         <item name="android:paddingVertical">@dimen/abc_dialog_padding_top_material</item>
         <item name="android:paddingHorizontal">?attr/dialogPreferredPadding</item>
     </style>
 
-    <style name="TextAppearance.SetWallpaperDialog.Subtitle" parent="@android:style/TextAppearance.DeviceDefault.Small">
+    <style name="TextAppearance.SetWallpaperDialog.Subtitle" parent="TextAppearance.SettingsLib.BodyMedium">
         <item name="android:textColor">@color/system_on_surface</item>
         <item name="android:gravity">center</item>
         <item name="android:textAlignment">center</item>
@@ -334,15 +326,13 @@
 
     <!-- Main page font styles -->
     <style name="TextAppearance.DeviceDefault.Small"
-        parent="@android:style/TextAppearance.DeviceDefault.Small" />
+        parent="TextAppearance.SettingsLib.BodyMedium" />
 
-    <style name="TextAppearance.DeviceDefault.Small.LabelMedium">
-        <item name="android:textSize">12sp</item>
-    </style>
+    <style name="TextAppearance.DeviceDefault.Small.LabelMedium"
+        parent="TextAppearance.SettingsLib.LabelMedium" />
 
-    <style name="TextAppearance.DeviceDefault.Small.LabelMediumEmphasized">
-        <item name="android:textSize">12sp</item>
-    </style>
+    <style name="TextAppearance.DeviceDefault.Small.LabelMediumEmphasized"
+        parent="TextAppearance.SettingsLib.LabelMedium.Emphasized" />
 
     <style name="TextAppearance.OptionItem.Label.Unselected" parent="TextAppearance.DeviceDefault.Small.LabelMedium">
         <item name="android:textColor">@color/system_on_surface_variant</item>
@@ -352,11 +342,14 @@
         <item name="android:textColor">@color/system_on_surface</item>
     </style>
 
-    <style name="TextAppearance.DeviceDefault.Small.LabelLargeEmphasized" />
+    <style name="TextAppearance.DeviceDefault.Small.LabelLargeEmphasized"
+        parent="TextAppearance.SettingsLib.LabelLarge.Emphasized" />
 
-    <style name="TextAppearance.DeviceDefault.Small.TitleMedium" />
+    <style name="TextAppearance.DeviceDefault.Small.TitleMedium"
+        parent="TextAppearance.SettingsLib.TitleMedium" />
 
-    <style name="TextAppearance.DeviceDefault.Small.TitleMediumEmphasized" />
+    <style name="TextAppearance.DeviceDefault.Small.TitleMediumEmphasized"
+        parent="TextAppearance.SettingsLib.TitleMedium.Emphasized" />
 
     <style name="TextAppearance.Preview.Label.Unselected" parent="TextAppearance.DeviceDefault.Small.TitleMedium">
         <item name="android:textColor">@color/system_on_surface</item>
@@ -368,7 +361,8 @@
 
     <style name="TextAppearance.DeviceDefault.Large" parent="@android:style/TextAppearance.DeviceDefault.Large" />
 
-    <style name="TextAppearance.DeviceDefault.Large.TitleLargeEmphasized" />
+    <style name="TextAppearance.DeviceDefault.Large.TitleLargeEmphasized"
+        parent="TextAppearance.SettingsLib.TitleLarge.Emphasized" />
 
     <style name="ToolbarTheme">
         <item name="android:titleTextAppearance">@style/TextAppearance.DeviceDefault.Large.TitleLargeEmphasized</item>

@@ -389,7 +389,7 @@ fun TopToolbar(
         Text(
             modifier = Modifier.weight(1f),
             text = title,
-            fontSize = 20.sp,
+            style = MaterialTheme.typography.titleLargeEmphasized,
             color = colorScheme.onSurface,
         )
         if (isRotationEnabled) {
