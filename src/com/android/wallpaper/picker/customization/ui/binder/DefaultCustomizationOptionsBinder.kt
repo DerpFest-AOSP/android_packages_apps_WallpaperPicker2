@@ -27,6 +27,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.customization.picker.clock.ui.view.ClockViewFactory
 import com.android.customization.picker.icon.ui.util.IconStyleViewUtil
+import com.android.settingslib.widget.theme.R as SettingsThemeR
 import com.android.wallpaper.R
 import com.android.wallpaper.picker.customization.ui.util.CustomizationOptionUtil.CustomizationOption
 import com.android.wallpaper.picker.customization.ui.viewmodel.ColorUpdateViewModel
@@ -86,8 +87,11 @@ class DefaultCustomizationOptionsBinder @Inject constructor() : CustomizationOpt
                         val (onDismiss, onKeepEditing, onDiscard) = viewModel
                         val dialog =
                             discardChangesDialog
-                                ?: AlertDialog.Builder(activity)
-                                    .setMessage(R.string.discard_changes_dialog_message)
+                                ?: AlertDialog.Builder(
+                                        activity,
+                                        SettingsThemeR.style.Theme_DeviceDefault_AlertDialog_SettingsLib_Expressive,
+                                    )
+                                    .setTitle(R.string.discard_changes_dialog_message)
                                     .setOnDismissListener { onDismiss.invoke() }
                                     .setPositiveButton(
                                         R.string.discard_changes_dialog_button_keep_editing
