@@ -27,7 +27,6 @@ import android.view.LayoutInflater
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewGroup.MarginLayoutParams
 import android.view.ViewStub
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -313,13 +312,18 @@ class CustomizationPickerFragment :
         // Listen to the window's bottom nav bar height and the top status bar height and update the
         // layout padding accordingly. Do not skip the "nav visible + bottom 0" case: that is the
         // steady state when the navigation hint is hidden, not only a transient rotation pass.
+        val toolbarPaddingTop = toolbarContainer.paddingTop
         ViewCompat.setOnApplyWindowInsetsListener(pickerMotionContainer) { _, windowInsets ->
             val insets: Insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            toolbarContainer.setPaddingRelative(
+                toolbarContainer.paddingStart,
+                toolbarPaddingTop + insets.top,
+                toolbarContainer.paddingEnd,
+                toolbarContainer.paddingBottom,
+            )
             applySystemBarInsets(
-                toolbarContainer = toolbarContainer,
                 optionContainer = optionContainer,
                 customizationFloatingSheetContainer = customizationFloatingSheetContainer,
-                statusBarHeight = insets.top,
                 navBarHeight = insets.bottom,
             )
 
@@ -552,14 +556,10 @@ class CustomizationPickerFragment :
     }
 
     private fun applySystemBarInsets(
-        toolbarContainer: LinearLayout,
         optionContainer: ConstraintLayout,
         customizationFloatingSheetContainer: FrameLayout,
-        statusBarHeight: Int,
         navBarHeight: Int,
     ) {
-        (toolbarContainer.layoutParams as MarginLayoutParams).setMargins(0, statusBarHeight, 0, 0)
-
         val horizontalPadding =
             resources.getDimensionPixelSize(
                 R.dimen.customization_option_container_horizontal_padding
