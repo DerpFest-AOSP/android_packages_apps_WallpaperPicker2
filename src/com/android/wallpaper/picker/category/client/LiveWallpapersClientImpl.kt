@@ -90,7 +90,7 @@ class LiveWallpapersClientImpl @Inject constructor(@ApplicationContext val conte
 
         val resolveInfos = pm.queryIntentServices(
             Intent(WallpaperService.SERVICE_INTERFACE),
-            PackageManager.GET_META_DATA
+            PackageManager.GET_META_DATA or PackageManager.MATCH_DISABLED_COMPONENTS
         )
 
         val wallpaperInfos: MutableList<ResolveInfo> = mutableListOf()
@@ -170,7 +170,10 @@ class LiveWallpapersClientImpl @Inject constructor(@ApplicationContext val conte
      */
     private fun getCreativeWallpaperServiceNames(): Set<String> {
         return context.packageManager
-            .queryIntentServices(Intent(WALLPAPER_CREATION_ACTION), PackageManager.GET_META_DATA)
+            .queryIntentServices(
+                Intent(WALLPAPER_CREATION_ACTION),
+                PackageManager.GET_META_DATA or PackageManager.MATCH_DISABLED_COMPONENTS,
+            )
             .mapNotNullTo(mutableSetOf()) { it.serviceInfo?.name }
     }
 

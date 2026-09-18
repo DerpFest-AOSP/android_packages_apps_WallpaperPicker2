@@ -25,6 +25,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Parcel;
 import android.service.wallpaper.WallpaperService;
 import android.text.TextUtils;
@@ -153,7 +154,7 @@ public class LiveWallpaperInfo extends WallpaperInfo {
         }
         intent.setClassName(packageName, serviceName);
         List<ResolveInfo> resolveInfos = context.getPackageManager().queryIntentServices(intent,
-                PackageManager.GET_META_DATA);
+                PackageManager.GET_META_DATA | PackageManager.MATCH_DISABLED_COMPONENTS);
         if (resolveInfos.isEmpty()) {
             Log.w(TAG, "Couldn't find live wallpaper for " + serviceName);
             return null;
@@ -276,7 +277,8 @@ public class LiveWallpaperInfo extends WallpaperInfo {
     private static Set<String> getCreativeWallpaperServiceNames(Context context) {
         Set<String> serviceNames = new HashSet<>();
         List<ResolveInfo> resolveInfos = context.getPackageManager().queryIntentServices(
-                new Intent(WALLPAPER_CREATION_ACTION), PackageManager.GET_META_DATA);
+                new Intent(WALLPAPER_CREATION_ACTION),
+                PackageManager.GET_META_DATA | PackageManager.MATCH_DISABLED_COMPONENTS);
         for (ResolveInfo info : resolveInfos) {
             if (info.serviceInfo != null) {
                 serviceNames.add(info.serviceInfo.name);
@@ -354,7 +356,7 @@ public class LiveWallpaperInfo extends WallpaperInfo {
 
         List<ResolveInfo> allResolveInfos = pm.queryIntentServices(
                 new Intent(WallpaperService.SERVICE_INTERFACE),
-                PackageManager.GET_META_DATA);
+                PackageManager.GET_META_DATA | PackageManager.MATCH_DISABLED_COMPONENTS);
 
         // Filter ALL live wallpapers for only those in the list of specified service names.
         // Prefer this approach so we can make only one call to PackageManager (expensive!) rather than
@@ -381,7 +383,7 @@ public class LiveWallpaperInfo extends WallpaperInfo {
 
         List<ResolveInfo> resolveInfos = pm.queryIntentServices(
                 new Intent(WallpaperService.SERVICE_INTERFACE),
-                PackageManager.GET_META_DATA);
+                PackageManager.GET_META_DATA | PackageManager.MATCH_DISABLED_COMPONENTS);
 
         List<ResolveInfo> wallpaperInfos = new ArrayList<>();
 
@@ -500,7 +502,17 @@ public class LiveWallpaperInfo extends WallpaperInfo {
     @Override
     public Asset getThumbAsset(Context context) {
         if (mThumbAsset == null) {
-            mThumbAsset = new LiveWallpaperThumbAsset(context, mInfo);
+            Uri thumbnailUri = null;
+            Bundle metadata = mInfo.getServiceInfo().metaData;
+            if (metadata != null) {
+                String thumbnail = metadata.getString("android.service.wallpaper.thumbnail");
+                if (thumbnail != null) {
+                    thumbnailUri = Uri.parse(thumbnail);
+                }
+            }
+            mThumbAsset = thumbnailUri == null
+                    ? new LiveWallpaperThumbAsset(context, mInfo)
+                    : new LiveWallpaperThumbAsset(context, mInfo, thumbnailUri, true);
         }
         return mThumbAsset;
     }
