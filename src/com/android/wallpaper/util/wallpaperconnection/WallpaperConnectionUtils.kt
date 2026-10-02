@@ -39,6 +39,7 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -157,26 +158,34 @@ constructor(
             if (!wallpaperConnectionMap.containsKey(engineKey)) {
                 mutex.withLock {
                     if (!wallpaperConnectionMap.containsKey(engineKey)) {
-                        coroutineScope {
-                            wallpaperConnectionMap[engineKey] = async {
-                                initEngine(
-                                    context,
-                                    wallpaperModel.getWallpaperServiceIntent(),
-                                    engineDisplaySize,
-                                    destinationFlag,
-                                    whichPreview,
-                                    surfaceView,
-                                    listener,
-                                    wallpaperModel.liveWallpaperData.description,
-                                    isConfigChange,
-                                    this@WallpaperConnectionUtils,
-                                    shortKey,
-                                )
-                            }
+                        try {
+                            coroutineScope {
+                                wallpaperConnectionMap[engineKey] = async {
+                                    initEngine(
+                                        context,
+                                        wallpaperModel.getWallpaperServiceIntent(),
+                                        engineDisplaySize,
+                                        destinationFlag,
+                                        whichPreview,
+                                        surfaceView,
+                                        listener,
+                                        wallpaperModel.liveWallpaperData.description,
+                                        isConfigChange,
+                                        this@WallpaperConnectionUtils,
+                                        shortKey,
+                                    )
+                                }
 
-                            if (wallpaperConnectionMap.size == totalEngineNum) {
-                                isPreviewEnginesConnected.complete(true)
+                                if (wallpaperConnectionMap.size == totalEngineNum) {
+                                    isPreviewEnginesConnected.complete(true)
+                                }
                             }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            wallpaperConnectionMap.remove(engineKey)
+                            isPreviewEnginesConnected.complete(false)
+                            Log.e(TAG, "Fail to bind the live wallpaper service", e)
                         }
                     }
                 }
@@ -187,8 +196,7 @@ constructor(
                     wallpaperModel.liveWallpaperData.description,
                     wallpaperModel.liveWallpaperData.systemWallpaperInfo.component,
                 )
-            latestConnectionMap[serviceKey] =
-                wallpaperConnectionMap[engineKey] as Deferred<WallpaperConnection>
+            wallpaperConnectionMap[engineKey]?.let { latestConnectionMap[serviceKey] = it }
 
             wallpaperConnectionMap[engineKey]?.await()?.let { connection ->
                 if (debug) Log.d(TAG, "${toHex(this)}: MIR: $connection")
