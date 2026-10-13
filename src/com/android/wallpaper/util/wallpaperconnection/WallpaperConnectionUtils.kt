@@ -198,7 +198,7 @@ constructor(
                 )
             wallpaperConnectionMap[engineKey]?.let { latestConnectionMap[serviceKey] = it }
 
-            wallpaperConnectionMap[engineKey]?.await()?.let { connection ->
+            wallpaperConnectionMap[engineKey]?.awaitOrNull()?.let { connection ->
                 if (debug) Log.d(TAG, "${toHex(this)}: MIR: $connection")
                 connection.engineConnection.get()?.engine?.let {
                     mirrorAndReparent(
@@ -228,6 +228,22 @@ constructor(
         disconnectAllServices()
     }
 
+    /**
+     * Awaits a connection and returns null if binding the wallpaper service or creating its engine
+     * failed. A failed connection can still be in the maps when another caller looks it up (the
+     * home and lock screen previews connect concurrently), and awaiting it rethrows the bind
+     * failure in that caller, which crashes the picker. Cancellation is still propagated.
+     */
+    private suspend fun Deferred<WallpaperConnection>.awaitOrNull(): WallpaperConnection? =
+        try {
+            await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Wallpaper connection failed", e)
+            null
+        }
+
     suspend fun disconnect(packageName: String) {
         mutex.withLock {
             if (debug) Log.d(TAG, "${toHex(this)}: disconnect(packageName)")
@@ -239,7 +255,7 @@ constructor(
                             surfaceControls.forEach { it.release() }
                             surfaceControls.clear()
                         }
-                        wallpaperConnectionMap.remove(engineKey)?.await()?.disconnect(context)
+                        wallpaperConnectionMap.remove(engineKey)?.awaitOrNull()?.disconnect(context)
                     }
             }
         }
@@ -250,13 +266,13 @@ constructor(
             if (debug) Log.d(TAG, "${toHex(this)}: disconnect(connection)")
             wallpaperConnectionMap
                 .filterValues { engine ->
-                    engine.await().engineConnection.get().let {
+                    engine.awaitOrNull()?.engineConnection?.get().let {
                         it != null && it == connection.engineConnection.get()
                     }
                 }
                 .keys
                 .forEach { key ->
-                    wallpaperConnectionMap.remove(key)?.await()?.disconnect(context)
+                    wallpaperConnectionMap.remove(key)?.awaitOrNull()?.disconnect(context)
                     surfaceControlMap.remove(key)?.let { surfaceControls ->
                         surfaceControls.forEach { it.release() }
                         surfaceControls.clear()
@@ -275,7 +291,7 @@ constructor(
                     .values
                     .forEach {
                         try {
-                            it.await().engineConnection.get()?.engine?.setVisibility(isVisible)
+                            it.awaitOrNull()?.engineConnection?.get()?.engine?.setVisibility(isVisible)
                         } catch (e: RemoteException) {
                             Log.w(TAG, "Error setting engine visibility", e)
                         }
@@ -295,7 +311,7 @@ constructor(
     suspend fun disconnectAllServices() {
         if (debug) Log.d(TAG, "${toHex(this)}: disconnectAllServices()")
         wallpaperConnectionMap.keys.map { key ->
-            mutex.withLock { wallpaperConnectionMap.remove(key)?.await()?.disconnect(context) }
+            mutex.withLock { wallpaperConnectionMap.remove(key)?.awaitOrNull()?.disconnect(context) }
         }
 
         creativeWallpaperConfigPreviewUriMap.clear()
@@ -317,7 +333,7 @@ constructor(
                     destinationFlag,
                 )
                 .let { engineKey ->
-                    wallpaperConnectionMap[engineKey]?.await()?.engineConnection?.get()?.engine
+                    wallpaperConnectionMap[engineKey]?.awaitOrNull()?.engineConnection?.get()?.engine
                 }
 
         if (engine != null) {
@@ -362,7 +378,7 @@ constructor(
                 wallpaperModel.liveWallpaperData.description,
                 wallpaperModel.liveWallpaperData.systemWallpaperInfo.component,
             )
-        latestConnectionMap[serviceKey]?.await()?.engineConnection?.get()?.engine?.let {
+        latestConnectionMap[serviceKey]?.awaitOrNull()?.engineConnection?.get()?.engine?.let {
             try {
                 return it.javaClass
                     .getMethod("onApplyWallpaper", Int::class.javaPrimitiveType)

@@ -21,6 +21,7 @@ import android.app.WallpaperManager
 import android.app.WallpaperManager.FLAG_LOCK
 import android.app.WallpaperManager.FLAG_SYSTEM
 import android.content.Context
+import android.content.Intent
 import android.text.TextUtils
 import android.util.ArraySet
 import android.util.Log
@@ -37,6 +38,7 @@ import com.android.wallpaper.picker.data.WallpaperModel
 import com.android.wallpaper.picker.preview.ui.WallpaperPreviewActivity
 import com.android.wallpaper.picker.wallpapers.domain.interactor.CategoryWallpapersInteractor
 import com.android.wallpaper.util.LaunchSourceUtils.WALLPAPER_LAUNCH_SOURCE
+import com.android.wallpaper.util.LiveWallpaperModuleDownloads
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -202,8 +204,14 @@ constructor(
                                     },
                                 isDownloadable =
                                     (it as? WallpaperModel.StaticWallpaperModel)
-                                        ?.downloadableWallpaperData != null,
+                                        ?.downloadableWallpaperData != null ||
+                                        moduleDownloadIntent(it) != null,
                                 getLaunchActivityIntent = {
+                                    // A live wallpaper whose assets aren't downloaded yet can't be
+                                    // previewed: open its app's download screen instead.
+                                    moduleDownloadIntent(it)?.let { downloadIntent ->
+                                        return@ThumbnailsViewModelCategory downloadIntent
+                                    }
                                     persistentWallpaperModelRepository.setWallpaperModel(it)
                                     val previewIntent =
                                         WallpaperPreviewActivity.intentBuilder(context, true)
@@ -383,6 +391,14 @@ constructor(
             isAppliedToHome || isAppliedToLock
         }
     }
+
+    private fun moduleDownloadIntent(wallpaper: WallpaperModel): Intent? =
+        (wallpaper as? WallpaperModel.LiveWallpaperModel)?.let {
+            LiveWallpaperModuleDownloads.downloadIntent(
+                context,
+                it.liveWallpaperData.systemWallpaperInfo,
+            )
+        }
 
     companion object {
         const val DEBUG = false
